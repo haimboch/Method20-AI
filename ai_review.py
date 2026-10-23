@@ -17,6 +17,8 @@ def review_chart(symbol, chart_path, numbers):
         "balance, recent trend, candlestick reversal clues, relative position "
         "to SMA20, volume and CCI. Separate visual observations from interpretation. "
         "Do not guess prices, gaps, dates or make trading instructions. "
+        "Explain conditional support/resistance scenarios only if supported by provided levels; "
+        "do not claim numerical probabilities or certainty. "
         "The quantitative rules and statuses are authoritative and cannot be "
         "overridden by this visual review. Facts: "
         +json.dumps(numbers,ensure_ascii=False,default=str)

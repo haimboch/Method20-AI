@@ -1,5 +1,6 @@
 """Send the latest validated EOD artifact by Gmail SMTP, without rerunning AI."""
 import io
+import html
 import json
 import os
 import smtplib
@@ -10,6 +11,7 @@ from zoneinfo import ZoneInfo
 
 import pandas_market_calendars as mcal
 import requests
+from PIL import Image
 
 TO="Haimboch@gmail.com"
 API="https://api.github.com"
@@ -78,24 +80,96 @@ def find_artifact(session,repo,session_date,now):
                 return raw,results,run["html_url"]
     raise LookupError("No complete and verified EOD artifact for NYSE session "+session_date.isoformat())
 
+def compact_chart(image_bytes):
+    """Reduce chart size for inline Gmail display, preserving source archive."""
+    with Image.open(io.BytesIO(image_bytes)) as im:
+        im=im.convert("RGB")
+        im.thumbnail((1050,850))
+        out=io.BytesIO()
+        im.save(out,format="JPEG",quality=72,optimize=True)
+        return out.getvalue()
+
 def make_message(raw,results,session_date,run_url):
+    """Render the report *inside* the email. No ZIP or extraction required."""
     ready=[r["symbol"] for r in results if r["analysis"]["status"]=="READY"]
     triggered=[r["symbol"] for r in results if r["analysis"]["status"]=="TRIGGERED"]
     msg=EmailMessage()
     msg["From"]=TO
     msg["To"]=TO
     msg["Subject"]="METHOD 20 AI | דוח מסחר "+session_date.isoformat()
-    body=("דוח METHOD 20 AI ליום המסחר "+session_date.isoformat()+"\n\n"
-          +"מניות שנבדקו: "+str(len(results))+"\n"
-          +"READY: "+(", ".join(ready) if ready else "אין")+"\n"
-          +"TRIGGERED: "+(", ".join(triggered) if triggered else "אין")+"\n\n"
-          +"דוח HTML עם הגרפים מצורף כקובץ ZIP. חלץ את כל הקבצים "
-          +"ופתח את report.html לצד תיקיית charts.\n\n"
-          +"קישור להרצה: "+run_url+"\n\n"
-          +"מחקר טכני בלבד, ללא הוראות מסחר.")
-    msg.set_content(body)
-    msg.add_attachment(raw,maintype="application",subtype="zip",
-                       filename="method20-"+session_date.isoformat()+".zip")
+    msg.set_content(
+        "METHOD 20 AI: "+session_date.isoformat()+"\n"
+        +"מניות שנותחו: "+str(len(results))+"\n"
+        +"READY: "+(", ".join(ready) if ready else "אין")+"\n"
+        +"TRIGGERED: "+(", ".join(triggered) if triggered else "אין")+"\n"
+        +"הדוח המלא, כולל הגרפים והניתוח, מופיע בגרסת HTML של הודעה זו.\n"
+        +"מקור: "+run_url+"\n"
+    )
+    parts=[
+        '<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8"></head>',
+        '<body style="margin:0;padding:18px;font-family:Arial,sans-serif;background:#f2f5f9;color:#162638">',
+        '<div style="max-width:840px;margin:auto">',
+        '<h1 style="margin:0 0 8px">METHOD 20 AI</h1>',
+        '<p>דוח מסחר '+html.escape(session_date.isoformat())+' | '+str(len(results))+' מניות</p>',
+        '<div style="padding:14px;background:#e8eef6;border-radius:10px">',
+        '<b>READY:</b> '+html.escape(", ".join(ready) if ready else "אין"),
+        ' | <b>TRIGGERED:</b> '+html.escape(", ".join(triggered) if triggered else "אין"),
+        '</div>',
+        '<p style="font-size:12px">הסטאפים הם אותות מחקריים בלבד, לא הוראות מסחר. התרחישים מותנים ולא תחזיות ודאיות.</p>'
+    ]
+    images=[]
+    with zipfile.ZipFile(io.BytesIO(raw)) as z:
+        for index,item in enumerate(results):
+            sym=html.escape(item["symbol"])
+            a=item["analysis"]
+            ai=item.get("ai_review",{})
+            levels=item.get("levels",{})
+            outlook=item.get("outlook",{})
+            def prices(name):
+                entries=levels.get(name,[])
+                return ", ".join("$"+format(float(v["price"]),".2f") for v in entries) if entries else "לא זוהתה"
+            def safe(value):
+                return html.escape(str(value if value is not None else "לא זמין"))
+            parts.extend([
+                '<section style="background:white;margin:18px 0;padding:16px;border-radius:12px;border:1px solid #e1e6ed">',
+                '<h2 style="margin:0 0 8px">'+sym+' | '+safe(a.get("status"))+'</h2>',
+                '<p><b>סגירה:</b> $'+safe(a.get("close"))+' | <b>SMA20:</b> $'+safe(a.get("sma20"))
+                +' | <b>CCI14:</b> '+safe(a.get("cci14"))+' | <b>נפח:</b> '+safe(a.get("volume_ratio"))+'x</p>',
+                '<p><b>מגמת 5 ימים:</b> '+safe(a.get("change_5d_pct"))+'% | <b>21 ימים:</b> '+safe(a.get("change_21d_pct"))+'%</p>',
+                '<p><b>תמיכות:</b> '+safe(prices("support"))+' | <b>התנגדויות:</b> '+safe(prices("resistance"))+'</p>',
+                '<p><b>תחזית מותנית ליום הבא:</b> '+safe(outlook.get("bias"))+'</p>',
+                '<p>'+safe(outlook.get("reason"))+'</p>',
+                '<p><b>תרחיש שורי:</b> '+safe(outlook.get("bull_case"))+'</p>',
+                '<p><b>תרחיש דובי:</b> '+safe(outlook.get("bear_case"))+'</p>',
+            ])
+            active=a.get("active")
+            if active:
+                parts.append('<p><b>סטאפ פעיל:</b> '+safe(active.get("setup"))
+                             +'; HIGH: $'+safe(active.get("high"))
+                             +'; LOW: $'+safe(active.get("low"))+'</p>')
+            chart_name="charts/"+item["symbol"]+".png"
+            if chart_name not in z.namelist():
+                raise ValueError("Missing chart image: "+chart_name)
+            cid="method20-chart-"+str(index)+"@local"
+            image_data=compact_chart(z.read(chart_name))
+            images.append((cid,image_data))
+            parts.append('<img alt="Daily '+sym+' chart" src="cid:'+cid+'" '
+                         'style="display:block;width:100%;height:auto;margin:12px 0"/>')
+            parts.extend([
+                '<h3 style="margin:12px 0 6px">ניתוח AI חזותי</h3>',
+                '<p style="line-height:1.6;white-space:pre-line">'+safe(ai.get("text"))+'</p>',
+                '</section>'
+            ])
+    parts.extend(['<p style="font-size:12px">מקור הדוח: <a href="'
+                  +html.escape(run_url,quote=True)+'">GitHub Actions</a>. '
+                  'מידע למחקר בלבד.</p>','</div></body></html>'])
+    msg.add_alternative("".join(parts),subtype="html")
+    htmlpart=msg.get_payload()[-1]
+    for cid,content in images:
+        htmlpart.add_related(content,maintype="image",subtype="jpeg",
+                             cid="<"+cid+">",disposition="inline")
+    if len(msg.as_bytes())>18*1024*1024:
+        raise ValueError("Inline email exceeds 18 MB safety limit")
     return msg
 
 def main():

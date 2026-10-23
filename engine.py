@@ -67,53 +67,7 @@ def indicators(d):
     d["cci"]=((tp-avg)/(0.015*mad.replace(0,np.nan)))
     return d
 
-def bullish(d,i):
-    x=d.iloc[i]
-    span=max(float(x.high-x.low),1e-9)
-    body=abs(x.close-x.open)
-    green=x.close>x.open
-    hammer=(min(x.open,x.close)-x.low >=2*body) and (x.high-max(x.open,x.close)<=body)
-    engulf=False
-    if i>0:
-        prev=d.iloc[i-1]
-        engulf=(green and prev.close<prev.open and x.open<=prev.close and x.close>=prev.open)
-    return bool((green and (x.close-x.low)/span>=0.65 and body/span>=0.25) or hammer or engulf)
-
-def classify(d,i):
-    if i<160: return None
-    cur,prev,older=d.iloc[i],d.iloc[i-1],d.iloc[i-2]
-    if pd.isna(cur.sma20) or pd.isna(cur.cci) or pd.isna(prev.cci) or pd.isna(older.cci):
-        return None
-    cci_turn=cur.cci>prev.cci and prev.cci<=older.cci
-    rising_volume=cur.volume>prev.volume or cur.volume>cur.vol20
-    if not (bullish(d,i) and cci_turn and rising_volume): return None
-    recent_down=d.close.iloc[i-5]<d.close.iloc[i-10] if i>=10 else False
-    below=cur.close<cur.sma20
-    bounce=(abs(cur.low/cur.sma20-1)<=0.025 and cur.close>=cur.sma20*0.98)
-    if below and recent_down and min(d.cci.iloc[max(0,i-5):i+1]) < -100:
-        kind="A: MEAN_REVERSION"
-    elif bounce: kind="B: SMA20_BOUNCE"
-    else: return None
-    return {"setup":kind,"signal_date":str(cur.date),"high":float(cur.high),"low":float(cur.low),"status":"READY"}
-
-def analyze(d):
-    active=None
-    last_event=None
-    for i in range(160,len(d)):
-        x=d.iloc[i]
-        if active:
-            up=bool(x.high>active["high"])
-            down=bool(x.low<active["low"])
-            if up or down:
-                active["status"]="AMBIGUOUS" if up and down else ("INVALIDATED" if down else "TRIGGERED")
-                active["event_date"]=str(x.date)
-                last_event=active.copy()
-                active=None
-            continue
-        signal=classify(d,i)
-        if signal: active=signal
-    x=d.iloc[-1]
-    return {"symbol_date":str(x.date),"close":float(x.close),"sma20":float(x.sma20),"cci14":float(x.cci),"volume_ratio":float(x.volume/x.vol20),"change_5d_pct":float((x.close/d.close.iloc[-6]-1)*100),"change_21d_pct":float((x.close/d.close.iloc[-22]-1)*100),"active":active,"last_event":last_event}
+from signals import analyze, classify, candle_pattern, transition
 
 def chart(d,symbol,path,a):
     d=d.tail(95).reset_index(drop=True)
@@ -151,7 +105,7 @@ def render(results):
             continue
         a=r["analysis"]
         active=a["active"]
-        status=active["status"] if active else "NO ACTIVE SETUP"
+        status=a["status"]
         setup=active["setup"] if active else "אין סטאפ פעיל"
         old=a["last_event"]
         prior=(f'אירוע קודם: {html.escape(old["status"])} בתאריך {html.escape(old.get("event_date",""))}' if old else "אין אירוע קודם")

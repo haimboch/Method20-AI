@@ -46,7 +46,7 @@ class SignalTests(unittest.TestCase):
         self.assertIsNone(classify(d,29))
     def test_cci_upturn_required(self):
         d=self.data(False)
-        d.loc[28,"cci"]=5
+        d.loc[28,"cci"]=45
         self.assertIsNone(classify(d,29))
     def test_doji_not_bullish(self):
         d=self.data()

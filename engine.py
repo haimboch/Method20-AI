@@ -141,6 +141,11 @@ def main():
     OUT.mkdir(exist_ok=True)
     (OUT/"charts").mkdir(exist_ok=True)
     symbols=[s.strip().upper() for s in (ROOT/"watchlist.txt").read_text().splitlines() if s.strip() and not s.startswith("#")]
+    if len(symbols)!=len(set(symbols)):
+        raise ValueError("watchlist.txt contains duplicate symbols")
+    if not 1<=len(symbols)<=40:
+        raise ValueError("Watchlist size must stay between 1 and 40 tickers")
+    print(f"WATCHLIST_COUNT={len(symbols)}",flush=True)
     results=[]
     for s in symbols:
         try:
@@ -187,10 +192,19 @@ def main():
     (OUT/"results.json").write_text(json.dumps(results,ensure_ascii=False,indent=2),encoding="utf-8")
     session_date=os.getenv("EXPECTED_SESSION_DATE","").strip() or str(
         next(x["analysis"]["symbol_date"] for x in results if "analysis" in x))
+    health={"session_date":session_date,
+            "symbols":[r["symbol"] for r in results],
+            "expected_ticker_count":len(symbols),
+            "analyzed_ticker_count":len(results)-len(errors),
+            "ai_complete_count":sum(r.get("ai_review",{}).get("status")=="COMPLETE" for r in results),
+            "ready_count":sum(r.get("analysis",{}).get("status")=="READY" for r in results),
+            "triggered_count":sum(r.get("analysis",{}).get("status")=="TRIGGERED" for r in results),
+            "failed_symbols":errors,
+            "complete":not errors and all(
+                r.get("ai_review",{}).get("status")=="COMPLETE" for r in results)}
     (OUT/"metadata.json").write_text(
-        json.dumps({"session_date":session_date,
-                    "symbols":[r["symbol"] for r in results],
-                    "complete":not errors},ensure_ascii=False,indent=2),encoding="utf-8")
+        json.dumps(health,ensure_ascii=False,indent=2),encoding="utf-8")
+    print("REPORT_HEALTH",json.dumps(health,ensure_ascii=False),flush=True)
     print("Report:",OUT/"report.html")
     if errors: raise SystemExit("Report incomplete; one or more ticker downloads failed")
 

@@ -33,8 +33,9 @@ def delivery_decision(event, now=None):
     session=closed.iloc[-1]
     session_date=closed.index[-1].date()
     # Prevent stale reporting on holidays or in case of missed nightly jobs.
-    if now-session["market_close"].to_pydatetime()>timedelta(hours=18):
-        return False,session_date,"No recently completed NYSE session"
+    max_age=timedelta(hours=18) if event=="schedule" else timedelta(hours=72)
+    if now-session["market_close"].to_pydatetime()>max_age:
+        return False,session_date,"No recently completed NYSE session within allowed window"
     return True,session_date,"Eligible last closed NYSE session"
 
 def github_get(session,path,params=None):
@@ -48,7 +49,7 @@ def find_artifact(session,repo,session_date,now):
     for run in runs:
         created=datetime.fromisoformat(run["created_at"].replace("Z","+00:00"))
         age=now-created
-        if not timedelta(0)<=age<=timedelta(hours=48):
+        if not timedelta(0)<=age<=timedelta(hours=72):
             continue
         artifacts=github_get(session,"/repos/"+repo+"/actions/runs/"+str(run["id"])+"/artifacts",
                             {"per_page":100}).get("artifacts",[])
@@ -178,6 +179,9 @@ def main():
     eligible,session_date,reason=delivery_decision(event,now)
     print("Delivery gate:",reason,"session:",session_date,flush=True)
     if not eligible:
+        print("DELIVERY_SKIPPED event="+event+" reason="+reason,flush=True)
+        if event=="workflow_dispatch":
+            raise RuntimeError("Manual email delivery blocked: "+reason)
         return
     token=os.getenv("GITHUB_TOKEN","").strip()
     password=os.getenv("GMAIL_APP_PASSWORD","").replace(" ","").strip()

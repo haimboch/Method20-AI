@@ -20,6 +20,7 @@ jobs:
       - name: Generate actual-data HTML report
         env:
           MASSIVE_API_KEY: ${{ secrets.MASSIVE_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: python engine.py
       - name: Upload report
         if: always()

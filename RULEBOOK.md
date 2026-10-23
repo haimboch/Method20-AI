@@ -1,4 +1,4 @@
-# METHOD 20 | Rulebook v0.5 draft
+# METHOD 20 | Rulebook v0.6 (prototype)
 
 **Daily candles, LONG only, research only, SMA20 only (no SMA150).**
 
@@ -18,4 +18,4 @@ Reversal candle produces `READY`, not an executed long. Keep its original high a
 Every watchlist symbol, including no-setup and failed-data symbols, needs a clear daily chart and rationale. No trading, no brokerage connection, no backtest.
 
 ## Limitations in current prototype
-Candlestick recognition and trend/volume thresholds are provisional heuristics, not a validated implementation of every rule. Current HTML contains deterministic analysis only, **not multimodal AI chart review**. The historical signal tracking currently uses a simplified state model; validate against actual TradingView before relying on flags.
+Candlestick recognition (hammer, bullish engulfing, bullish rejection), trend and volume thresholds remain provisional heuristics, not independently validated trading signals. A doji alone is neutral and does not generate a LONG reversal. State transition checks run on subsequent daily bars with no expiry; edge cases are covered by unit tests. The HTML still contains deterministic analysis only, **not multimodal AI chart review**. Validate setups against chart evidence before interpreting any label.

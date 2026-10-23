@@ -58,8 +58,8 @@ def fetch(symbol):
     for column in ["open", "high", "low", "close", "volume"]:
         d[column] = pd.to_numeric(d[column], errors="coerce")
     d = d.dropna()
-    if len(d) < 160:
-        raise ValueError(f"Insufficient completed daily bars: {len(d)} (need 160)")
+    if len(d) < 60:
+        raise ValueError(f"Insufficient completed daily bars: {len(d)} (need 60 for supported short-history analysis)")
     if not ((d.high >= d[["open", "close", "low"]].max(axis=1)) &
             (d.low <= d[["open", "close", "high"]].min(axis=1))).all():
         raise ValueError("Invalid OHLC values from provider")

@@ -20,16 +20,20 @@ def delivery_decision(event, now=None):
     if not now.tzinfo:
         raise ValueError("timezone-aware datetime required")
     israel=now.astimezone(ZoneInfo("Asia/Jerusalem"))
-    new_york=now.astimezone(ZoneInfo("America/New_York"))
-    session_date=new_york.date()
     if event=="schedule" and not (israel.hour==6 and israel.minute<=59):
-        return False,session_date,"Outside Israeli 06:00-06:59 delivery window"
-    nyse=mcal.get_calendar("NYSE").schedule(start_date=session_date,end_date=session_date)
-    if nyse.empty:
-        return False,session_date,"No NYSE session to deliver"
-    if now < nyse.iloc[0]["market_close"].to_pydatetime():
-        return False,session_date,"NYSE session not yet closed"
-    return True,session_date,"Eligible NYSE session"
+        return False,None,"Outside Israeli 06:00-06:59 delivery window"
+    calendar=mcal.get_calendar("NYSE")
+    day=now.astimezone(ZoneInfo("America/New_York")).date()
+    sessions=calendar.schedule(start_date=day-timedelta(days=7),end_date=day)
+    closed=sessions[sessions["market_close"]<=now]
+    if closed.empty:
+        return False,None,"No closed NYSE session in prior week"
+    session=closed.iloc[-1]
+    session_date=closed.index[-1].date()
+    # Prevent stale reporting on holidays or in case of missed nightly jobs.
+    if now-session["market_close"].to_pydatetime()>timedelta(hours=18):
+        return False,session_date,"No recently completed NYSE session"
+    return True,session_date,"Eligible last closed NYSE session"
 
 def github_get(session,path,params=None):
     r=session.get(API+path,params=params,timeout=40)

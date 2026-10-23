@@ -24,12 +24,19 @@ def fetch(symbol):
         raise RuntimeError("Missing MASSIVE_API_KEY GitHub Actions secret")
     url = (f"https://api.massive.com/v2/aggs/ticker/{symbol}/range/1/day/"
            f"{start.isoformat()}/{end.isoformat()}")
-    response = requests.get(
-        url,
-        headers={"Authorization": f"Bearer {key}"},
-        params={"adjusted": "true", "sort": "asc", "limit": 50000},
-        timeout=40
-    )
+    from requests.adapters import HTTPAdapter
+    from urllib3.util.retry import Retry
+    retry=Retry(total=3,backoff_factor=1,
+                status_forcelist=(429,500,502,503,504),
+                allowed_methods=frozenset(["GET"]))
+    with requests.Session() as session:
+        session.mount("https://",HTTPAdapter(max_retries=retry))
+        response=session.get(
+            url,
+            headers={"Authorization": f"Bearer {key}"},
+            params={"adjusted": "true", "sort": "asc", "limit": 50000},
+            timeout=40
+        )
     response.raise_for_status()
     data = response.json()
     if data.get("status") == "ERROR":

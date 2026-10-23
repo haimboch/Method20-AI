@@ -16,11 +16,7 @@ jobs:
           python-version: '3.11'
       - run: python -m pip install -r requirements.txt
       - name: Generate actual-data HTML report
-        env:
-          MASSIVE_API_KEY: ${{ secrets.MASSIVE_API_KEY }}
-        run: |
-          test -n "$MASSIVE_API_KEY" || { echo 'MASSIVE_API_KEY secret is missing'; exit 1; }
-          python engine.py
+        run: python engine.py
       - name: Upload report
         if: always()
         uses: actions/upload-artifact@v4

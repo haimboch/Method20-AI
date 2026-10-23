@@ -23,6 +23,13 @@ class DeliveryTests(unittest.TestCase):
         ok,day,_=self.check("2026-10-27T04:10:00")
         self.assertTrue(ok)
         self.assertEqual(day.isoformat(),"2026-10-26")
+    def test_manual_friday_evening_uses_thursday_session(self):
+        ok,day,_=self.check("2026-10-23T17:15:00","workflow_dispatch")
+        self.assertTrue(ok)
+        self.assertEqual(day.isoformat(),"2026-10-22")
+    def test_scheduled_friday_evening_cannot_send_old_report(self):
+        ok,_,_=self.check("2026-10-23T17:15:00","schedule")
+        self.assertFalse(ok)
     def test_wrong_utc_slot_skips(self):
         ok,_,_=self.check("2026-07-07T04:10:00")
         self.assertFalse(ok)

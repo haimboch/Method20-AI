@@ -26,17 +26,38 @@ def fetch(symbol):
            f"{start.isoformat()}/{end.isoformat()}")
     from requests.adapters import HTTPAdapter
     from urllib3.util.retry import Retry
-    retry=Retry(total=3,backoff_factor=1,
-                status_forcelist=(429,500,502,503,504),
+    # Avoid hidden repeated 429 retries; respond to throttling explicitly.
+    retry=Retry(total=2,backoff_factor=1,
+                status_forcelist=(500,502,503,504),
                 allowed_methods=frozenset(["GET"]))
+    max_429_retries=4
+    response=None
     with requests.Session() as session:
         session.mount("https://",HTTPAdapter(max_retries=retry))
-        response=session.get(
-            url,
-            headers={"Authorization": f"Bearer {key}"},
-            params={"adjusted": "true", "sort": "asc", "limit": 50000},
-            timeout=40
-        )
+        for attempt in range(max_429_retries+1):
+            response=session.get(
+                url,
+                headers={"Authorization": f"Bearer {key}"},
+                params={"adjusted": "true", "sort": "asc", "limit": 50000},
+                timeout=40
+            )
+            if response.status_code!=429:
+                break
+            if attempt==max_429_retries:
+                raise RuntimeError(
+                    f"Massive rate limit (HTTP 429) persisted for {symbol} "
+                    f"after {max_429_retries+1} requests; check API plan and shared-key usage"
+                )
+            retry_after=response.headers.get("Retry-After","")
+            try:
+                delay=float(retry_after)
+                if not 1<=delay<=300:
+                    delay=75.0
+            except (ValueError,TypeError):
+                delay=75.0
+            print(f"MASSIVE_429 symbol={symbol} attempt={attempt+1} "
+                  f"wait_seconds={delay:.0f}",flush=True)
+            time.sleep(delay)
     response.raise_for_status()
     data = response.json()
     if data.get("status") == "ERROR":
@@ -156,7 +177,7 @@ def main():
     results=[]
     # Conservative shared request pacing for vendor plans with low RPM limits.
     # No local machine or extra secrets required.
-    request_interval=float(os.getenv("MASSIVE_REQUEST_INTERVAL_SEC","13"))
+    request_interval=float(os.getenv("MASSIVE_REQUEST_INTERVAL_SEC","20"))
     next_request_at=0.0
     for s in symbols:
         try:

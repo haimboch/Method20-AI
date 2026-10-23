@@ -1,4 +1,5 @@
 import os, json, time, html
+from datetime import date, timedelta
 from pathlib import Path
 import requests
 import pandas as pd
@@ -15,7 +16,9 @@ BASE="https://api.massive.com"
 SESSION=requests.Session()
 
 def fetch(symbol):
-    url=f"{BASE}/v2/aggs/ticker/{symbol}/range/1/day/2025-09-01/2026-10-23"
+    end=date.today()
+    start=end-timedelta(days=450)
+    url=f"{BASE}/v2/aggs/ticker/{symbol}/range/1/day/{start.isoformat()}/{end.isoformat()}"
     r=SESSION.get(url,params={"adjusted":"true","sort":"asc","limit":50000,"apiKey":KEY},timeout=45)
     r.raise_for_status()
     payload=r.json()

@@ -1,4 +1,5 @@
 import os, json, time, html
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 import pandas as pd
 import numpy as np
@@ -153,12 +154,32 @@ def main():
             outlook=scenario(d,levels)
             chart(d,s,OUT/"charts"/f"{s}.png",a["active"],levels)
             checklist=build_checklist(d,a)
-            visual=review_chart(s,OUT/"charts"/f"{s}.png",{"analysis":a,"checklist":checklist,"levels":levels,"next_session_outlook":outlook})
-            results.append({"symbol":s,"analysis":a,"checklist":checklist,"levels":levels,"outlook":outlook,"ai_review":visual})
+            results.append({"symbol":s,"analysis":a,"checklist":checklist,"levels":levels,"outlook":outlook})
             print(f"{s}: {a['symbol_date']} {a['active']['status'] if a['active'] else 'NO ACTIVE SETUP'}")
         except Exception as e:
             results.append({"symbol":s,"error":str(e)})
             print(f"{s}: ERROR {e}",flush=True)
+    # Generate chart images sequentially (matplotlib is not thread-safe).
+    # Only the I/O-bound AI calls run concurrently, with a conservative cap.
+    def one_review(item):
+        symbol=item["symbol"]
+        return review_chart(
+            symbol,OUT/"charts"/f"{symbol}.png",
+            {"analysis":item["analysis"],"checklist":item["checklist"],
+             "levels":item["levels"],"next_session_outlook":item["outlook"]})
+    valid=[item for item in results if "error" not in item]
+    if valid:
+        with ThreadPoolExecutor(max_workers=3) as pool:
+            tasks={pool.submit(one_review,item):item for item in valid}
+            for task in as_completed(tasks):
+                item=tasks[task]
+                try:
+                    item["ai_review"]=task.result()
+                except Exception as exc:
+                    item["ai_review"]={"status":"UNAVAILABLE",
+                        "text":"ניתוח AI נכשל עקב תקלה בלתי צפויה."}
+                    print("AI_REVIEW_FAILED ticker="+item["symbol"]+
+                          " category=UNEXPECTED_ERROR",flush=True)
     render(results)
     errors=[x["symbol"] for x in results if "error" in x]
     if errors:

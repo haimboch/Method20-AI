@@ -144,6 +144,10 @@ def main():
     for s in symbols:
         try:
             d=indicators(fetch(s))
+            expected=os.getenv("EXPECTED_SESSION_DATE","").strip()
+            if expected and str(d.iloc[-1].date)!=expected:
+                raise ValueError("Stale latest daily candle: expected "+expected+
+                                 ", got "+str(d.iloc[-1].date))
             a=analyze(d)
             levels=structure(d)
             outlook=scenario(d,levels)
@@ -156,8 +160,11 @@ def main():
             results.append({"symbol":s,"error":str(e)})
             print(f"{s}: ERROR {e}",flush=True)
     render(results)
+    errors=[x["symbol"] for x in results if "error" in x]
+    if errors:
+        print("REPORT_INCOMPLETE tickers:",", ".join(errors),flush=True)
     (OUT/"results.json").write_text(json.dumps(results,ensure_ascii=False,indent=2),encoding="utf-8")
     print("Report:",OUT/"report.html")
-    if all("error" in x for x in results): raise SystemExit("All ticker downloads failed")
+    if errors: raise SystemExit("Report incomplete; one or more ticker downloads failed")
 
 if __name__=="__main__":main()

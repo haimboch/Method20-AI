@@ -19,3 +19,6 @@ Every watchlist symbol, including no-setup and failed-data symbols, needs a clea
 
 ## Limitations in current prototype
 Candlestick recognition (hammer, bullish engulfing, bullish rejection), trend and volume thresholds remain provisional heuristics, not independently validated trading signals. A doji alone is neutral and does not generate a LONG reversal. State transition checks run on subsequent daily bars with no expiry; edge cases are covered by unit tests. The HTML still contains deterministic analysis only, **not multimodal AI chart review**. Validate setups against chart evidence before interpreting any label.
+
+## v0.8: Support/resistance and next-day scenarios
+Levels come from confirmed swing highs/lows in the trailing 90 daily bars (2-bar confirmation on each side). Nearby levels are grouped within a provisional 0.8% tolerance. Show up to two support and two resistance levels closest to current closing price. The next-session outlook is a **qualitative conditional scenario**, not a calibrated forecast or probability. Inputs: last five sessions' return, latest candle and volume compared to previous 20 bars, price versus SMA20. Include bullish and bearish invalidation/confirmation conditions and allow an explicitly neutral result. No predicted return percentage or execution orders. Parameters must be validated against chart evidence.

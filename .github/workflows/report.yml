@@ -1,0 +1,31 @@
+name: METHOD 20 Manual Report
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m pip install -r requirements.txt
+      - name: Generate actual-data HTML report
+        env:
+          MASSIVE_API_KEY: ${{ secrets.MASSIVE_API_KEY }}
+        run: |
+          test -n "$MASSIVE_API_KEY" || { echo 'MASSIVE_API_KEY secret is missing'; exit 1; }
+          python engine.py
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: method20-html-report
+          path: output/
+          if-no-files-found: warn
+          retention-days: 14

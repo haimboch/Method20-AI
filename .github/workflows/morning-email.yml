@@ -1,0 +1,36 @@
+name: METHOD 20 Morning Email
+on:
+  workflow_dispatch:
+  schedule:
+    # Cover 06:10 Israel summer/winter time; timezone gate skips other slot.
+    - cron: "10 3 * * 2-6"
+    - cron: "10 4 * * 2-6"
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: method20-morning-email
+  cancel-in-progress: false
+
+jobs:
+  deliver:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install requirements
+        run: python -m pip install -r requirements.txt
+      - name: Verify mail rules
+        run: python -m unittest discover -s tests -v
+      - name: Send verified EOD report by Gmail SMTP
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+        run: python mail_report.py

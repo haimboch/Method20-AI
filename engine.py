@@ -154,8 +154,17 @@ def main():
         raise ValueError("Watchlist size must stay between 1 and 40 tickers")
     print(f"WATCHLIST_COUNT={len(symbols)}",flush=True)
     results=[]
+    # Conservative shared request pacing for vendor plans with low RPM limits.
+    # No local machine or extra secrets required.
+    request_interval=float(os.getenv("MASSIVE_REQUEST_INTERVAL_SEC","13"))
+    next_request_at=0.0
     for s in symbols:
         try:
+            remaining=next_request_at-time.monotonic()
+            if remaining>0:
+                print(f"DATA_RATE_LIMIT_PACING ticker={s} sleep_seconds={remaining:.1f}",flush=True)
+                time.sleep(remaining)
+            next_request_at=time.monotonic()+request_interval
             d=indicators(fetch(s))
             expected=os.getenv("EXPECTED_SESSION_DATE","").strip()
             if expected and str(d.iloc[-1].date)!=expected:
@@ -170,7 +179,7 @@ def main():
             print(f"{s}: {a['symbol_date']} {a['active']['status'] if a['active'] else 'NO ACTIVE SETUP'}")
         except Exception as e:
             results.append({"symbol":s,"error":str(e)})
-            print(f"{s}: ERROR {e}",flush=True)
+            print(f"{s}: ERROR type={type(e).__name__} detail={e}",flush=True)
     # Generate chart images sequentially (matplotlib is not thread-safe).
     # Only the I/O-bound AI calls run concurrently, with a conservative cap.
     def one_review(item):
@@ -207,6 +216,7 @@ def main():
             "ready_count":sum(r.get("analysis",{}).get("status")=="READY" for r in results),
             "triggered_count":sum(r.get("analysis",{}).get("status")=="TRIGGERED" for r in results),
             "failed_symbols":errors,
+            "failure_details":{r["symbol"]:r["error"] for r in results if "error" in r},
             "complete":not errors and all(
                 r.get("ai_review",{}).get("status")=="COMPLETE" for r in results)}
     (OUT/"metadata.json").write_text(

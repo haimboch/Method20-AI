@@ -1,5 +1,39 @@
-SPCX
+# METHOD20 | Monthly-editable watchlist | 35 symbols
+# SPCX -> SPCK: SPAC and New Issue ETF changed ticker Apr 2026
+# Core original pilot
+SPCK
 WDC
 NBIS
 IREN
 MU
+# Semiconductors / AI infrastructure / cloud / crypto / growth
+NVDA
+AMD
+AVGO
+ARM
+TSM
+SMCI
+DELL
+ANET
+VRT
+ORCL
+PLTR
+APP
+CRWV
+APLD
+CIFR
+BITF
+HUT
+MARA
+RIOT
+CLS
+COHR
+LITE
+SNDK
+STX
+HOOD
+SOFI
+COIN
+RKLB
+ASTS
+OKLO

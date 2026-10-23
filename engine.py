@@ -1,7 +1,5 @@
 import os, json, time, html
-from datetime import date, timedelta
 from pathlib import Path
-import requests
 import pandas as pd
 import numpy as np
 import matplotlib
@@ -11,28 +9,39 @@ from matplotlib.patches import Rectangle
 
 ROOT=Path(__file__).resolve().parent
 OUT=ROOT/"output"
-KEY=os.getenv("MASSIVE_API_KEY","")
-BASE="https://api.massive.com"
-SESSION=requests.Session()
 
 def fetch(symbol):
-    end=date.today()
-    start=end-timedelta(days=450)
-    url=f"{BASE}/v2/aggs/ticker/{symbol}/range/1/day/{start.isoformat()}/{end.isoformat()}"
-    r=SESSION.get(url,params={"adjusted":"true","sort":"asc","limit":50000,"apiKey":KEY},timeout=45)
-    r.raise_for_status()
-    payload=r.json()
-    if payload.get("status")=="ERROR" or not payload.get("results"):
-        raise ValueError(f"No daily OHLCV returned: {payload.get('error',payload.get('message','empty'))}")
-    d=pd.DataFrame(payload["results"])
-    d=d.rename(columns={"t":"date","o":"open","h":"high","l":"low","c":"close","v":"volume"})
-    d["date"]=pd.to_datetime(d["date"],unit="ms",utc=True).dt.tz_convert("America/New_York").dt.date
-    d=d[["date","open","high","low","close","volume"]].sort_values("date").drop_duplicates("date")
-    for col in ["open","high","low","close","volume"]:
-        d[col]=pd.to_numeric(d[col],errors="coerce")
-    d=d.dropna()
-    if len(d)<160: raise ValueError(f"Need >=160 sessions; got {len(d)}")
-    if not ((d.high>=d[["open","close","low"]].max(axis=1)) & (d.low<=d[["open","close","high"]].min(axis=1))).all():
+    # Request two years of daily data for enough indicator warm-up.
+    # Do not treat an in-progress US trading session as a completed daily candle.
+    from datetime import datetime, time as dtime
+    from zoneinfo import ZoneInfo
+    import yfinance as yf
+    eastern = datetime.now(ZoneInfo("America/New_York"))
+    d = yf.Ticker(symbol).history(
+        period="2y", interval="1d", auto_adjust=True,
+        actions=False, prepost=False, timeout=25
+    )
+    if d is None or d.empty:
+        raise ValueError("Yahoo Finance returned no daily bars")
+    if hasattr(d.columns, "nlevels") and d.columns.nlevels > 1:
+        d.columns = d.columns.get_level_values(0)
+    d = d.rename(columns={
+        "Open": "open", "High": "high", "Low": "low",
+        "Close": "close", "Volume": "volume"
+    })
+    d = d[["open", "high", "low", "close", "volume"]].copy()
+    d["date"] = [x.date() for x in d.index]
+    if eastern.weekday() < 5 and eastern.time() < dtime(16, 15):
+        d = d[d.date < eastern.date()]
+    d = d[["date", "open", "high", "low", "close", "volume"]]
+    d = d.sort_values("date").drop_duplicates("date")
+    for col in ["open", "high", "low", "close", "volume"]:
+        d[col] = pd.to_numeric(d[col], errors="coerce")
+    d = d.dropna()
+    if len(d) < 160:
+        raise ValueError(f"Need >=160 completed sessions; got {len(d)}")
+    if not ((d.high >= d[["open", "close", "low"]].max(axis=1)) &
+            (d.low <= d[["open", "close", "high"]].min(axis=1))).all():
         raise ValueError("Invalid OHLC values")
     return d.reset_index(drop=True)
 
@@ -139,7 +148,6 @@ def render(results):
     (OUT/"report.html").write_text(document,encoding="utf-8")
 
 def main():
-    if not KEY: raise SystemExit("Missing MASSIVE_API_KEY GitHub secret")
     OUT.mkdir(exist_ok=True)
     (OUT/"charts").mkdir(exist_ok=True)
     symbols=[s.strip().upper() for s in (ROOT/"watchlist.txt").read_text().splitlines() if s.strip() and not s.startswith("#")]
@@ -154,7 +162,6 @@ def main():
         except Exception as e:
             results.append({"symbol":s,"error":str(e)})
             print(f"{s}: ERROR {e}",flush=True)
-        time.sleep(.15)
     render(results)
     (OUT/"results.json").write_text(json.dumps(results,ensure_ascii=False,indent=2),encoding="utf-8")
     print("Report:",OUT/"report.html")

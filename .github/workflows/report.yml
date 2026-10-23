@@ -1,32 +1,50 @@
-name: METHOD 20 Manual Report
+name: METHOD 20 EOD Report
 on:
   workflow_dispatch:
+  schedule:
+    # UTC schedules covering Israeli winter/summer time.
+    # Only the local 23:30–00:29 Israel window passes the guard.
+    - cron: "40 20 * * 1-5"
+    - cron: "40 21 * * 1-5"
 
 permissions:
   contents: read
 
+concurrency:
+  group: method20-report-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   report:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - run: python -m pip install -r requirements.txt
+      - name: Install requirements
+        run: python -m pip install -r requirements.txt
+      - name: Check Israel clock and NYSE calendar
+        id: guard
+        env:
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+        run: python schedule_guard.py
       - name: Verify signal rules
+        if: steps.guard.outputs.should_run == 'true'
         run: python -m unittest discover -s tests -v
       - name: Generate actual-data HTML report
+        if: steps.guard.outputs.should_run == 'true'
         env:
           MASSIVE_API_KEY: ${{ secrets.MASSIVE_API_KEY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          EXPECTED_SESSION_DATE: ${{ github.event_name == 'schedule' && steps.guard.outputs.session_date || '' }}
         run: python engine.py
       - name: Upload report
-        if: always()
+        if: steps.guard.outputs.should_run == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: method20-html-report
           path: output/
-          if-no-files-found: warn
-          retention-days: 14
+          if-no-files-found: error
+          retention-days: 30

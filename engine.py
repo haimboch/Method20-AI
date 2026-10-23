@@ -11,38 +11,50 @@ ROOT=Path(__file__).resolve().parent
 OUT=ROOT/"output"
 
 def fetch(symbol):
-    # Request two years of daily data for enough indicator warm-up.
-    # Do not treat an in-progress US trading session as a completed daily candle.
-    from datetime import datetime, time as dtime
+    """Fetch split-adjusted DAILY OHLCV from Massive. No key is printed or saved."""
+    from datetime import datetime, timedelta, time as clock_time
     from zoneinfo import ZoneInfo
-    import yfinance as yf
-    eastern = datetime.now(ZoneInfo("America/New_York"))
-    d = yf.Ticker(symbol).history(
-        period="2y", interval="1d", auto_adjust=True,
-        actions=False, prepost=False, timeout=25
+    import requests
+    ny = datetime.now(ZoneInfo("America/New_York"))
+    end = ny.date()
+    start = end - timedelta(days=520)
+    key = os.getenv("MASSIVE_API_KEY", "").strip()
+    if not key:
+        raise RuntimeError("Missing MASSIVE_API_KEY GitHub Actions secret")
+    url = (f"https://api.massive.com/v2/aggs/ticker/{symbol}/range/1/day/"
+           f"{start.isoformat()}/{end.isoformat()}")
+    response = requests.get(
+        url,
+        headers={"Authorization": f"Bearer {key}"},
+        params={"adjusted": "true", "sort": "asc", "limit": 50000},
+        timeout=40
     )
-    if d is None or d.empty:
-        raise ValueError("Yahoo Finance returned no daily bars")
-    if hasattr(d.columns, "nlevels") and d.columns.nlevels > 1:
-        d.columns = d.columns.get_level_values(0)
-    d = d.rename(columns={
-        "Open": "open", "High": "high", "Low": "low",
-        "Close": "close", "Volume": "volume"
+    response.raise_for_status()
+    data = response.json()
+    if data.get("status") == "ERROR":
+        raise ValueError(f"Market data provider error: {data.get('message','unknown')}")
+    bars = data.get("results", [])
+    if not bars:
+        raise ValueError("Massive returned no OHLCV daily data")
+    d = pd.DataFrame(bars).rename(columns={
+        "t": "date", "o": "open", "h": "high", "l": "low",
+        "c": "close", "v": "volume"
     })
-    d = d[["open", "high", "low", "close", "volume"]].copy()
-    d["date"] = [x.date() for x in d.index]
-    if eastern.weekday() < 5 and eastern.time() < dtime(16, 15):
-        d = d[d.date < eastern.date()]
+    d["date"] = pd.to_datetime(d["date"], unit="ms", utc=True).dt.tz_convert(
+        "America/New_York"
+    ).dt.date
+    if ny.weekday() < 5 and ny.time() < clock_time(16, 15):
+        d = d[d.date < ny.date()]
     d = d[["date", "open", "high", "low", "close", "volume"]]
     d = d.sort_values("date").drop_duplicates("date")
-    for col in ["open", "high", "low", "close", "volume"]:
-        d[col] = pd.to_numeric(d[col], errors="coerce")
+    for column in ["open", "high", "low", "close", "volume"]:
+        d[column] = pd.to_numeric(d[column], errors="coerce")
     d = d.dropna()
     if len(d) < 160:
-        raise ValueError(f"Need >=160 completed sessions; got {len(d)}")
+        raise ValueError(f"Insufficient completed daily bars: {len(d)} (need 160)")
     if not ((d.high >= d[["open", "close", "low"]].max(axis=1)) &
             (d.low <= d[["open", "close", "high"]].min(axis=1))).all():
-        raise ValueError("Invalid OHLC values")
+        raise ValueError("Invalid OHLC values from provider")
     return d.reset_index(drop=True)
 
 def indicators(d):

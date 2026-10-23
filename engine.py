@@ -164,6 +164,12 @@ def main():
     if errors:
         print("REPORT_INCOMPLETE tickers:",", ".join(errors),flush=True)
     (OUT/"results.json").write_text(json.dumps(results,ensure_ascii=False,indent=2),encoding="utf-8")
+    session_date=os.getenv("EXPECTED_SESSION_DATE","").strip() or str(
+        next(x["analysis"]["symbol_date"] for x in results if "analysis" in x))
+    (OUT/"metadata.json").write_text(
+        json.dumps({"session_date":session_date,
+                    "symbols":[r["symbol"] for r in results],
+                    "complete":not errors},ensure_ascii=False,indent=2),encoding="utf-8")
     print("Report:",OUT/"report.html")
     if errors: raise SystemExit("Report incomplete; one or more ticker downloads failed")
 

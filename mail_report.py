@@ -60,6 +60,9 @@ def find_artifact(session,repo,session_date,now):
                 raise ValueError("Report ZIP exceeds Gmail safe 18 MB attachment limit")
             with zipfile.ZipFile(io.BytesIO(raw)) as z:
                 names=z.namelist()
+                if "metadata.json" not in names:
+                    print("SKIP_LEGACY_ARTIFACT run="+str(run["id"])+" missing metadata.json; regenerate EOD report",flush=True)
+                    continue
                 meta=json.loads(z.read("metadata.json"))
                 if (meta.get("session_date")!=session_date.isoformat()
                     or not meta.get("complete")):

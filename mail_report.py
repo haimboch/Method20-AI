@@ -82,6 +82,49 @@ def find_artifact(session,repo,session_date,now):
                 return raw,results,run["html_url"]
     raise LookupError("No complete and verified EOD artifact for NYSE session "+session_date.isoformat())
 
+def regenerate_missing_report(session_date):
+    """Recovery only: fetch the exact closed trading session and rebuild the report.
+
+    Runs the AI only when there is no complete reusable artifact. Fail closed on
+    missing/old data, partial ticker coverage or incomplete visual reviews.
+    """
+    from pathlib import Path
+    import engine
+    print("EOD_RECOVERY_START session="+session_date.isoformat(),flush=True)
+    previous=os.environ.get("EXPECTED_SESSION_DATE")
+    os.environ["EXPECTED_SESSION_DATE"]=session_date.isoformat()
+    try:
+        engine.main()
+    finally:
+        if previous is None:
+            os.environ.pop("EXPECTED_SESSION_DATE",None)
+        else:
+            os.environ["EXPECTED_SESSION_DATE"]=previous
+    root=Path(engine.OUT)
+    meta=json.loads((root/"metadata.json").read_text(encoding="utf-8"))
+    results=json.loads((root/"results.json").read_text(encoding="utf-8"))
+    if (meta.get("session_date")!=session_date.isoformat()
+        or not meta.get("complete") or not results
+        or len(results)!=meta.get("expected_ticker_count")
+        or any("error" in r or r.get("ai_review",{}).get("status")!="COMPLETE"
+               for r in results)):
+        raise RuntimeError("Recovered report failed complete-date-and-AI validation")
+    contents=io.BytesIO()
+    with zipfile.ZipFile(contents,"w",compression=zipfile.ZIP_DEFLATED) as z:
+        for p in root.rglob("*"):
+            if p.is_file():
+                z.write(p,p.relative_to(root).as_posix())
+    raw=contents.getvalue()
+    if len(raw)>MAX_ATTACHMENT:
+        raise ValueError("Recovered report exceeds archive size limit")
+    repo=os.getenv("GITHUB_REPOSITORY","haimboch/Method20-AI")
+    run_id=os.getenv("GITHUB_RUN_ID","")
+    run_url=("https://github.com/"+repo+"/actions/runs/"+run_id
+             if run_id else "https://github.com/"+repo+"/actions")
+    print("EOD_RECOVERY_COMPLETE session="+session_date.isoformat()+
+          " tickers="+str(len(results)),flush=True)
+    return raw,results,run_url
+
 def compact_chart(image_bytes):
     """Reduce chart size for inline Gmail display, preserving source archive."""
     with Image.open(io.BytesIO(image_bytes)) as im:
@@ -195,7 +238,12 @@ def main():
     session.headers.update({"Authorization":"Bearer "+token,
                             "Accept":"application/vnd.github+json",
                             "X-GitHub-Api-Version":"2022-11-28"})
-    raw,results,url=find_artifact(session,repo,session_date,now)
+    try:
+        raw,results,url=find_artifact(session,repo,session_date,now)
+        print("EOD_EXISTING_ARTIFACT_FOUND session="+session_date.isoformat(),flush=True)
+    except LookupError:
+        print("EOD_ARTIFACT_MISSING initiating verified recovery",flush=True)
+        raw,results,url=regenerate_missing_report(session_date)
     msg=make_message(raw,results,session_date,url)
     with smtplib.SMTP_SSL("smtp.gmail.com",465,timeout=45) as smtp:
         smtp.login(TO,password)

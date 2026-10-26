@@ -74,6 +74,50 @@ class DeliveryTests(unittest.TestCase):
                              for p in msg.walk()))
         self.assertTrue(any(p.get_content_type()=="image/jpeg" for p in msg.walk()))
 
+    def test_recovery_requires_complete_artifact(self):
+        import json
+        import tempfile
+        from pathlib import Path
+        from unittest.mock import patch
+        from mail_report import regenerate_missing_report
+        import engine
+        with tempfile.TemporaryDirectory() as td:
+            root=Path(td)
+            (root/"report.html").write_text("<html>report</html>")
+            (root/"results.json").write_text(json.dumps([
+                {"symbol":"MU","analysis":{"symbol_date":"2026-10-23"},
+                 "ai_review":{"status":"COMPLETE"}}]))
+            (root/"metadata.json").write_text(json.dumps({
+                "session_date":"2026-10-23","complete":True,
+                "expected_ticker_count":1}))
+            (root/"charts").mkdir()
+            (root/"charts"/"MU.png").write_bytes(b"chart bytes")
+            with patch.object(engine,"OUT",root),patch.object(engine,"main"):
+                raw,results,url=regenerate_missing_report(
+                    datetime(2026,10,23).date())
+            with zipfile.ZipFile(io.BytesIO(raw)) as z:
+                self.assertIn("metadata.json",z.namelist())
+                self.assertIn("charts/MU.png",z.namelist())
+            self.assertEqual(len(results),1)
+
+    def test_recovery_rejects_incomplete_analysis(self):
+        import json
+        import tempfile
+        from pathlib import Path
+        from unittest.mock import patch
+        from mail_report import regenerate_missing_report
+        import engine
+        with tempfile.TemporaryDirectory() as td:
+            root=Path(td)
+            (root/"metadata.json").write_text(json.dumps({
+                "session_date":"2026-10-23","complete":False,
+                "expected_ticker_count":1}))
+            (root/"results.json").write_text(json.dumps([
+                {"symbol":"MU","ai_review":{"status":"UNAVAILABLE"}}]))
+            with patch.object(engine,"OUT",root),patch.object(engine,"main"):
+                with self.assertRaisesRegex(RuntimeError,"failed"):
+                    regenerate_missing_report(datetime(2026,10,23).date())
+
     def test_missing_chart_fails_before_sending(self):
         result=[{"symbol":"MU","analysis":{"status":"READY"},"ai_review":{"text":"ok"}}]
         archive=io.BytesIO()

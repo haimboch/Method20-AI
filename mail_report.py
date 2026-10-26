@@ -33,7 +33,8 @@ def delivery_decision(event, now=None):
     session=closed.iloc[-1]
     session_date=closed.index[-1].date()
     # Prevent stale reporting on holidays or in case of missed nightly jobs.
-    max_age=timedelta(hours=18) if event=="schedule" else timedelta(hours=72)
+    monday_report=(event=="schedule" and israel.weekday()==0 and session_date.weekday()==4)
+    max_age=timedelta(hours=72) if monday_report or event!="schedule" else timedelta(hours=18)
     if now-session["market_close"].to_pydatetime()>max_age:
         return False,session_date,"No recently completed NYSE session within allowed window"
     return True,session_date,"Eligible last closed NYSE session"

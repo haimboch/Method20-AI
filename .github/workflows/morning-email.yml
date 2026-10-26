@@ -2,9 +2,9 @@ name: METHOD 20 Morning Email
 on:
   workflow_dispatch:
   schedule:
-    # Cover 06:10 Israel summer/winter time; timezone gate skips other slot.
-    - cron: "10 3 * * 2-6"
-    - cron: "10 4 * * 2-6"
+    # Cover 06:10 Israel summer/winter time, Monday through Saturday.\n    # Monday resends the Friday market report; timezone gate skips wrong slot.
+    - cron: "10 3 * * 1-6"
+    - cron: "10 4 * * 1-6"
 
 permissions:
   contents: read

@@ -178,6 +178,7 @@ def make_message(raw,results,session_date,run_url):
             a=item["analysis"]
             levels=item.get("levels",{})
             outlook=item.get("outlook",{})
+            bullish=item.get("bullish_patterns",[])
             def prices(name):
                 entries=levels.get(name,[])
                 return ", ".join("$"+fmt2(v["low"])+"–$"+fmt2(v["high"]) if "low" in v and "high" in v else "$"+fmt2(v["price"]) for v in entries[:1]) if entries else "לא זוהתה"
@@ -194,6 +195,7 @@ def make_message(raw,results,session_date,run_url):
                 '<p>'+safe(outlook.get("reason"))+'</p>',
                 '<p><b>תרחיש שורי:</b> '+safe(outlook.get("bull_case"))+'</p>',
                 '<p><b>תרחיש דובי:</b> '+safe(outlook.get("bear_case"))+'</p>',
+                '<p><b>תבניות נרות שוריות בגרף:</b> '+str(len(bullish))+' | מסגרת זהובה מציינת תבנית, לא כניסה מאושרת.</p>',
             ])
             active=a.get("active")
             if active:

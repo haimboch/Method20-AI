@@ -37,7 +37,6 @@ jobs:
         if: steps.guard.outputs.should_run == 'true'
         env:
           MASSIVE_API_KEY: ${{ secrets.MASSIVE_API_KEY }}
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           EXPECTED_SESSION_DATE: ${{ github.event_name == 'schedule' && steps.guard.outputs.session_date || '' }}
         run: python engine.py
       - name: Upload report

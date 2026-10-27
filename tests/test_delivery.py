@@ -43,7 +43,7 @@ class DeliveryTests(unittest.TestCase):
         self.assertTrue(ok)
         self.assertEqual(day.isoformat(),"2026-10-26")
     def test_wrong_utc_slot_skips(self):
-        ok,_,_=self.check("2026-07-07T05:10:00")
+        ok,_,_=self.check("2026-07-07T02:10:00")
         self.assertFalse(ok)
     def test_backup_slot_in_summer(self):
         ok,day,_=self.check("2026-07-07T04:17:00")
@@ -53,6 +53,22 @@ class DeliveryTests(unittest.TestCase):
         ok,day,_=self.check("2026-01-06T05:17:00")
         self.assertTrue(ok)
         self.assertEqual(day.isoformat(),"2026-01-05")
+    def test_delayed_schedule_still_delivers_in_winter(self):
+        ok,day,reason=self.check("2026-10-27T06:30:00")
+        self.assertTrue(ok,reason)
+        self.assertEqual(day.isoformat(),"2026-10-26")
+    def test_schedule_after_morning_window_skips(self):
+        ok,_,_=self.check("2026-10-27T08:10:00")
+        self.assertFalse(ok)
+    def test_sent_marker_prevents_duplicate(self):
+        from unittest.mock import patch
+        from mail_report import already_sent
+        class Dummy:
+            pass
+        with patch("mail_report.github_get",return_value={"artifacts":[
+            {"name":"method20-sent-2026-10-26","expired":False}]}):
+            self.assertTrue(already_sent(Dummy(),"owner/repo",
+                datetime(2026,10,26).date()))
     def test_holiday_skips(self):
         ok,_,_=self.check("2026-12-26T04:10:00")
         self.assertFalse(ok)

@@ -98,24 +98,25 @@ def indicators(d):
 from signals import analyze, classify, candle_pattern, transition
 from checklist import build_checklist
 from levels import structure, scenario
+from report_format import fmt2, fmt_signed, format_numbers_in_text
 
 def chart(d,symbol,path,a,levels=None):
     d=d.tail(95).reset_index(drop=True)
-    fig,(ax,vax,cax)=plt.subplots(3,1,figsize=(12,8),sharex=True,gridspec_kw={"height_ratios":[5,1.2,1.5]})
+    fig,(ax,vax,cax)=plt.subplots(3,1,figsize=(15,10),sharex=True,gridspec_kw={"height_ratios":[6,1.5,1.8]})
     for i,x in d.iterrows():
         color="#12805c" if x.close>=x.open else "#c44747"
         ax.vlines(i,x.low,x.high,color=color,lw=1)
         ax.add_patch(Rectangle((i-.33,min(x.open,x.close)),.66,max(abs(x.close-x.open),.001),color=color))
         vax.bar(i,x.volume,color=color,width=.75)
-    ax.plot(np.arange(len(d)),d.sma20,color="#e5a522",lw=1.8,label="SMA20")
+    ax.plot(np.arange(len(d)),d.sma20,color="#e5a522",lw=2.2,label="SMA20")
     if a and str(a["signal_date"])>=str(d.iloc[0].date):
         ax.axhline(a["high"],ls="--",color="#12805c",lw=1,label="reversal HIGH")
         ax.axhline(a["low"],ls="--",color="#c44747",lw=1,label="reversal LOW")
     if levels:
-        for j,z in enumerate(levels["support"]):
-            ax.axhline(z["price"],color="#16815c",ls=":",lw=1.1,label="Support" if j==0 else None)
-        for j,z in enumerate(levels["resistance"]):
-            ax.axhline(z["price"],color="#b75a4c",ls=":",lw=1.1,label="Resistance" if j==0 else None)
+        for z in levels["support"]:
+            ax.axhspan(z["low"],z["high"],color="#16815c",alpha=0.20,label="Support zone")
+        for z in levels["resistance"]:
+            ax.axhspan(z["low"],z["high"],color="#b75a4c",alpha=0.20,label="Resistance zone")
     ax.set_title(symbol+"  |  1D  |  "+str(d.iloc[-1].date))
     ax.legend(loc="upper left")
     ax.grid(alpha=.17)
@@ -128,7 +129,7 @@ def chart(d,symbol,path,a,levels=None):
     cax.set_xticks(ticks,[str(d.date.iloc[i])[5:] for i in ticks],rotation=40)
     cax.grid(alpha=.17)
     fig.tight_layout()
-    fig.savefig(path,dpi=160)
+    fig.savefig(path,dpi=175)
     plt.close(fig)
 
 def render(results):
@@ -144,20 +145,20 @@ def render(results):
         setup=active["setup"] if active else "אין סטאפ פעיל"
         old=a["last_event"]
         prior=(f'אירוע קודם: {html.escape(old["status"])} בתאריך {html.escape(old.get("event_date",""))}' if old else "אין אירוע קודם")
-        checkrows=''.join('<tr><td>'+html.escape(str(k))+'</td><td>'+html.escape(str(v))+'</td></tr>' for k,v,_ in r.get('checklist',[]))
+        checkrows=''.join('<tr><td>'+html.escape(str(k))+'</td><td>'+html.escape(format_numbers_in_text(v))+'</td></tr>' for k,v,_ in r.get('checklist',[]))
         lv=r.get("levels",{})
         outlook=r.get("outlook",{})
         def fmtlevels(values):
-            return ", ".join("$"+format(v["price"],".2f") for v in values) if values else "אין רמה מאומתת בחלון הסריקה"
+            return ", ".join("$"+fmt2(v["low"])+"–$"+fmt2(v["high"]) for v in values) if values else "אין אזור מאומת בחלון הסריקה"
         support_text=html.escape(fmtlevels(lv.get("support",[])))
         resistance_text=html.escape(fmtlevels(lv.get("resistance",[])))
         bias_text=html.escape(outlook.get("bias","לא זמין"))
-        reasons=html.escape(outlook.get("reason",""))
-        bull=html.escape(outlook.get("bull_case",""))
-        bear=html.escape(outlook.get("bear_case",""))
+        reasons=html.escape(format_numbers_in_text(outlook.get("reason","")))
+        bull=html.escape(format_numbers_in_text(outlook.get("bull_case","")))
+        bear=html.escape(format_numbers_in_text(outlook.get("bear_case","")))
 
-        cards.append(f'<section><h2>{sym} <small>{html.escape(status)}</small></h2><p>תאריך נר אחרון: {html.escape(a["symbol_date"])}</p><p>סגירה: ${a["close"]:.2f} | SMA20: ${a["sma20"]:.2f} | CCI14: {a["cci14"]:.1f} | Volume / Avg20: {a["volume_ratio"]:.2f}x</p><p>שינוי 5 ימים: {a["change_5d_pct"]:+.2f}% | שינוי 21 ימים: {a["change_21d_pct"]:+.2f}%</p><p>סטאפ: {html.escape(setup)}. {prior}</p><div class="panel"><h3>תמיכה והתנגדות</h3><p>תמיכות: {support_text}</p><p>התנגדויות: {resistance_text}</p><h3>תרחיש ליום הבא: {bias_text}</h3><p>{reasons}</p><p>תרחיש שורי: {bull}</p><p>תרחיש דובי: {bear}</p><small>תרחישים מותנים, לא תחזית הסתברותית מאומתת.</small></div><div class="panel"><h3>צ׳קליסט METHOD 20</h3><table>{checkrows}</table></div><img src="charts/{sym}.png" alt="Daily chart for {sym}" loading="lazy"/></section>')
-    document='''<!doctype html><html lang="he" dir="rtl"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>METHOD 20</title><style>body{font-family:Arial,sans-serif;background:#f3f5f9;color:#172331;margin:0;padding:20px}main{max-width:1050px;margin:auto}section{background:white;padding:20px;margin:18px 0;border-radius:16px;box-shadow:0 1px 7px #0001}img{max-width:100%;height:auto}small{font-size:14px;color:#666}.panel{background:#f5f7fa;padding:12px;border-radius:10px;margin:12px 0}table{width:100%;border-collapse:collapse}td{padding:8px;border-bottom:1px solid #ddd}td:first-child{font-weight:bold}.err{color:#aa3333}p{line-height:1.65}</style><main><h1>METHOD 20 AI | דוח פיילוט</h1><p>מידע למחקר בלבד. ללא ביצוע עסקאות. סטאפים מזוהים בחוקים ניסיוניים. כל הניתוחים מחושבים על פי נתוני מסחר באמצעות Python, ללא סקירת תמונה באמצעות OpenAI.</p>'''+''.join(cards)+'</main></html>'
+        cards.append(f'<section><h2>{sym} <small>{html.escape(status)}</small></h2><p>תאריך נר אחרון: {html.escape(a["symbol_date"])}</p><p>סגירה: ${a["close"]:.2f} | SMA20: ${a["sma20"]:.2f} | CCI14: {fmt2(a["cci14"])} | Volume / Avg20: {a["volume_ratio"]:.2f}x</p><p>שינוי 5 ימים: {a["change_5d_pct"]:+.2f}% | שינוי 21 ימים: {a["change_21d_pct"]:+.2f}%</p><p>סטאפ: {html.escape(setup)}. {prior}</p><div class="panel"><h3>תמיכה והתנגדות</h3><p>תמיכות: {support_text}</p><p>התנגדויות: {resistance_text}</p><h3>תרחיש ליום הבא: {bias_text}</h3><p>{reasons}</p><p>תרחיש שורי: {bull}</p><p>תרחיש דובי: {bear}</p><small>תרחישים מותנים, לא תחזית הסתברותית מאומתת.</small></div><div class="panel"><h3>צ׳קליסט METHOD 20</h3><table>{checkrows}</table></div><img class="chart" src="charts/{sym}.png" alt="Daily chart for {sym}" loading="lazy"/></section>')
+    document='''<!doctype html><html lang="he" dir="rtl"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>METHOD 20</title><style>body{font-family:Arial,sans-serif;background:#f3f5f9;color:#172331;margin:0;padding:20px}main{max-width:1350px;margin:auto}section{background:white;padding:20px;margin:18px 0;border-radius:16px;box-shadow:0 1px 7px #0001}img{width:100%;max-width:100%;height:auto;display:block;margin:12px auto}small{font-size:14px;color:#666}.panel{background:#f5f7fa;padding:12px;border-radius:10px;margin:12px 0}table{width:100%;border-collapse:collapse}td{padding:8px;border-bottom:1px solid #ddd}td:first-child{font-weight:bold}.err{color:#aa3333}p{line-height:1.65}</style><main><h1>METHOD 20 AI | דוח פיילוט</h1><p>מידע למחקר בלבד. ללא ביצוע עסקאות. סטאפים מזוהים בחוקים ניסיוניים. כל הניתוחים מחושבים על פי נתוני מסחר באמצעות Python, ללא סקירת תמונה באמצעות OpenAI.</p>'''+''.join(cards)+'</main></html>'
     (OUT/"report.html").write_text(document,encoding="utf-8")
 
 def main():
@@ -187,7 +188,7 @@ def main():
                 raise ValueError("Stale latest daily candle: expected "+expected+
                                  ", got "+str(d.iloc[-1].date))
             a=analyze(d)
-            levels=structure(d)
+            levels=structure(d,lookback=95)
             outlook=scenario(d,levels)
             chart(d,s,OUT/"charts"/f"{s}.png",a["active"],levels)
             checklist=build_checklist(d,a)

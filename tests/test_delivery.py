@@ -43,8 +43,16 @@ class DeliveryTests(unittest.TestCase):
         self.assertTrue(ok)
         self.assertEqual(day.isoformat(),"2026-10-26")
     def test_wrong_utc_slot_skips(self):
-        ok,_,_=self.check("2026-07-07T04:10:00")
+        ok,_,_=self.check("2026-07-07T05:10:00")
         self.assertFalse(ok)
+    def test_backup_slot_in_summer(self):
+        ok,day,_=self.check("2026-07-07T04:17:00")
+        self.assertTrue(ok)
+        self.assertEqual(day.isoformat(),"2026-07-06")
+    def test_backup_slot_in_winter(self):
+        ok,day,_=self.check("2026-01-06T05:17:00")
+        self.assertTrue(ok)
+        self.assertEqual(day.isoformat(),"2026-01-05")
     def test_holiday_skips(self):
         ok,_,_=self.check("2026-12-26T04:10:00")
         self.assertFalse(ok)

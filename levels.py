@@ -7,7 +7,7 @@ import math
 import numpy as np
 from signals import candle_pattern
 
-def structure(d, lookback=90, pivot_span=2):
+def structure(d, lookback=95, pivot_span=2):
     if len(d)<25:
         raise ValueError("Need 25 completed sessions")
     view=d.tail(lookback).reset_index(drop=True)
@@ -45,14 +45,15 @@ def structure(d, lookback=90, pivot_span=2):
                    key=lambda z:close-z["price"])
     resistance=sorted((z for z in allzones if z["price"]>close),
                       key=lambda z:z["price"]-close)
+    width=max(close*0.008,0.02)
     def output(items):
         selected=[]
         for x in items:
             if any(abs(x["price"]-p["price"])<max(.01,close*.008) for p in selected):
                 continue
             selected.append(x)
-            if len(selected)==2: break
-        return [{"price":round(z["price"],4),"touches":z["touches"]} for z in selected]
+            if len(selected)==1: break
+        return [{"price":round(z["price"],4),"low":round(z["price"]-width/2,4),"high":round(z["price"]+width/2,4),"touches":z["touches"]} for z in selected]
     return {"support":output(support),"resistance":output(resistance),
             "price":close,"lookback":len(view),"pivot_span":pivot_span,
             "zone_merge_pct":0.8}

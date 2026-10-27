@@ -12,6 +12,7 @@ from zoneinfo import ZoneInfo
 import pandas_market_calendars as mcal
 import requests
 from PIL import Image
+from report_format import fmt2, format_numbers_in_text
 
 TO="Haimboch@gmail.com"
 API="https://api.github.com"
@@ -94,7 +95,7 @@ def find_artifact(session,repo,session_date,now):
 def regenerate_missing_report(session_date):
     """Recovery only: fetch the exact closed trading session and rebuild the report.
 
-    Runs the AI only when there is no complete reusable artifact. Fail closed on
+    Regenerates source-based technical data only when no complete artifact exists. Fail closed on
     missing/old data or partial ticker coverage.
     """
     from pathlib import Path
@@ -116,7 +117,7 @@ def regenerate_missing_report(session_date):
         or not meta.get("complete") or not results
         or len(results)!=meta.get("expected_ticker_count")
         or any("error" in r for r in results)):
-        raise RuntimeError("Recovered report failed complete-date-and-AI validation")
+        raise RuntimeError("Recovered report failed complete-date-and-data validation")
     contents=io.BytesIO()
     with zipfile.ZipFile(contents,"w",compression=zipfile.ZIP_DEFLATED) as z:
         for p in root.rglob("*"):
@@ -137,7 +138,7 @@ def compact_chart(image_bytes):
     """Reduce chart size for inline Gmail display, preserving source archive."""
     with Image.open(io.BytesIO(image_bytes)) as im:
         im=im.convert("RGB")
-        im.thumbnail((1050,850))
+        im.thumbnail((1350,1100))
         out=io.BytesIO()
         im.save(out,format="JPEG",quality=72,optimize=True)
         return out.getvalue()
@@ -161,7 +162,7 @@ def make_message(raw,results,session_date,run_url):
     parts=[
         '<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8"></head>',
         '<body style="margin:0;padding:18px;font-family:Arial,sans-serif;background:#f2f5f9;color:#162638">',
-        '<div style="max-width:840px;margin:auto">',
+        '<div style="max-width:1200px;margin:auto">',
         '<h1 style="margin:0 0 8px">METHOD 20 AI</h1>',
         '<p>דוח מסחר '+html.escape(session_date.isoformat())+' | '+str(len(results))+' מניות</p>',
         '<div style="padding:14px;background:#e8eef6;border-radius:10px">',
@@ -175,13 +176,13 @@ def make_message(raw,results,session_date,run_url):
         for index,item in enumerate(results):
             sym=html.escape(item["symbol"])
             a=item["analysis"]
-                levels=item.get("levels",{})
+            levels=item.get("levels",{})
             outlook=item.get("outlook",{})
             def prices(name):
                 entries=levels.get(name,[])
-                return ", ".join("$"+format(float(v["price"]),".2f") for v in entries) if entries else "לא זוהתה"
+                return ", ".join("$"+fmt2(v["low"])+"–$"+fmt2(v["high"]) if "low" in v and "high" in v else "$"+fmt2(v["price"]) for v in entries[:1]) if entries else "לא זוהתה"
             def safe(value):
-                return html.escape(str(value if value is not None else "לא זמין"))
+                return html.escape(format_numbers_in_text(value))
             parts.extend([
                 '<section style="background:white;margin:18px 0;padding:16px;border-radius:12px;border:1px solid #e1e6ed">',
                 '<h2 style="margin:0 0 8px">'+sym+' | '+safe(a.get("status"))+'</h2>',
@@ -206,7 +207,7 @@ def make_message(raw,results,session_date,run_url):
             image_data=compact_chart(z.read(chart_name))
             images.append((cid,image_data))
             parts.append('<img alt="Daily '+sym+' chart" src="cid:'+cid+'" '
-                         'style="display:block;width:100%;height:auto;margin:12px 0"/>')
+                         'style="display:block;width:100%;max-width:1200px;height:auto;margin:12px 0"/>')
             parts.extend([
                 '</section>'
             ])

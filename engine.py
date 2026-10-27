@@ -101,6 +101,15 @@ from checklist import build_checklist
 from levels import structure, scenario
 from report_format import fmt2, fmt_signed, format_numbers_in_text
 
+BULLISH_LABELS={"BULLISH_ENGULFING":"Engulfing", "HAMMER":"Hammer", "BULLISH_REJECTION":"Rejection"}
+
+def visible_bullish_patterns(d):
+    """Patterns among visible candles only; this is NOT METHOD 20 entry confirmation."""
+    view=d.tail(95).reset_index(drop=True)
+    return [(i,p) for i in range(len(view))
+            if (p:=candle_pattern(view,i)) in BULLISH_LABELS]
+
+
 def chart(d,symbol,path,a,levels=None):
     d=d.tail(95).reset_index(drop=True)
     fig,(ax,vax,cax)=plt.subplots(3,1,figsize=(15,10),sharex=True,gridspec_kw={"height_ratios":[6,1.5,1.8]})
@@ -110,6 +119,19 @@ def chart(d,symbol,path,a,levels=None):
         ax.add_patch(Rectangle((i-.33,min(x.open,x.close)),.66,max(abs(x.close-x.open),.001),color=color))
         vax.bar(i,x.volume,color=color,width=.75)
     ax.plot(np.arange(len(d)),d.sma20,color="#e5a522",lw=2.2,label="SMA20")
+    bullish=visible_bullish_patterns(d)
+    for idx,pattern in bullish:
+        bar=d.iloc[idx]
+        span=max(float(bar.high-bar.low),float(d.close.iloc[-1])*0.008,0.02)
+        ax.add_patch(Rectangle((idx-0.55,float(bar.low)-span*.10),
+                               1.10,float(bar.high-bar.low)+span*.20,
+                               fill=False,edgecolor="#c18a00",linewidth=2,
+                               zorder=7))
+        ax.scatter([idx],[float(bar.high)+span*.27],
+                   marker="v",s=38,color="#c18a00",zorder=8)
+    if bullish:
+        ax.scatter([],[],marker="v",s=45,color="#c18a00",
+                   label="Bullish candle (not entry)")
     if a and str(a["signal_date"])>=str(d.iloc[0].date):
         ax.axhline(a["high"],ls="--",color="#12805c",lw=1,label="reversal HIGH")
         ax.axhline(a["low"],ls="--",color="#c44747",lw=1,label="reversal LOW")
@@ -154,6 +176,7 @@ def render(results):
         checkrows=''.join('<tr><td>'+html.escape(str(k))+'</td><td>'+html.escape(format_numbers_in_text(v))+'</td></tr>' for k,v,_ in r.get('checklist',[]))
         lv=r.get("levels",{})
         outlook=r.get("outlook",{})
+        patterns=r.get("bullish_patterns",[])
         def fmtlevels(values):
             return ", ".join("$"+fmt2(v["low"])+"–$"+fmt2(v["high"]) for v in values) if values else "אין אזור מאומת בחלון הסריקה"
         support_text=html.escape(fmtlevels(lv.get("support",[])))
@@ -163,7 +186,7 @@ def render(results):
         bull=html.escape(format_numbers_in_text(outlook.get("bull_case","")))
         bear=html.escape(format_numbers_in_text(outlook.get("bear_case","")))
 
-        cards.append(f'<section><h2>{sym} <small>{html.escape(status)}</small></h2><p>תאריך נר אחרון: {html.escape(a["symbol_date"])}</p><p>סגירה: ${a["close"]:.2f} | SMA20: ${a["sma20"]:.2f} | CCI14: {fmt2(a["cci14"])} | Volume / Avg20: {a["volume_ratio"]:.2f}x</p><p>שינוי 5 ימים: {a["change_5d_pct"]:+.2f}% | שינוי 21 ימים: {a["change_21d_pct"]:+.2f}%</p><p>סטאפ: {html.escape(setup)}. {prior}</p><div class="panel"><h3>תמיכה והתנגדות</h3><p>תמיכות: {support_text}</p><p>התנגדויות: {resistance_text}</p><h3>תרחיש ליום הבא: {bias_text}</h3><p>{reasons}</p><p>תרחיש שורי: {bull}</p><p>תרחיש דובי: {bear}</p><small>תרחישים מותנים, לא תחזית הסתברותית מאומתת.</small></div><div class="panel"><h3>צ׳קליסט METHOD 20</h3><table>{checkrows}</table></div><img class="chart" src="charts/{sym}.png" alt="Daily chart for {sym}" loading="lazy"/></section>')
+        cards.append(f'<section><h2>{sym} <small>{html.escape(status)}</small></h2><p>תאריך נר אחרון: {html.escape(a["symbol_date"])}</p><p>סגירה: ${a["close"]:.2f} | SMA20: ${a["sma20"]:.2f} | CCI14: {fmt2(a["cci14"])} | Volume / Avg20: {a["volume_ratio"]:.2f}x</p><p>שינוי 5 ימים: {a["change_5d_pct"]:+.2f}% | שינוי 21 ימים: {a["change_21d_pct"]:+.2f}%</p><p>סטאפ: {html.escape(setup)}. {prior}</p><div class="panel"><h3>תמיכה והתנגדות</h3><p>תמיכות: {support_text}</p><p>התנגדויות: {resistance_text}</p><h3>תרחיש ליום הבא: {bias_text}</h3><p>{reasons}</p><p>תרחיש שורי: {bull}</p><p>תרחיש דובי: {bear}</p><small>תרחישים מותנים, לא תחזית הסתברותית מאומתת.</small></div><p><b>תבניות נרות שוריות מסומנות:</b> {len(patterns)} (מסגרת זהובה; לא אישור כניסה)</p><div class="panel"><h3>צ׳קליסט METHOD 20</h3><table>{checkrows}</table></div><img class="chart" src="charts/{sym}.png" alt="Daily chart for {sym}" loading="lazy"/></section>')
     document='''<!doctype html><html lang="he" dir="rtl"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>METHOD 20</title><style>body{font-family:Arial,sans-serif;background:#f3f5f9;color:#172331;margin:0;padding:20px}main{max-width:1350px;margin:auto}section{background:white;padding:20px;margin:18px 0;border-radius:16px;box-shadow:0 1px 7px #0001}img{width:100%;max-width:100%;height:auto;display:block;margin:12px auto}small{font-size:14px;color:#666}.panel{background:#f5f7fa;padding:12px;border-radius:10px;margin:12px 0}table{width:100%;border-collapse:collapse}td{padding:8px;border-bottom:1px solid #ddd}td:first-child{font-weight:bold}.err{color:#aa3333}p{line-height:1.65}</style><main><h1>METHOD 20 AI | דוח פיילוט</h1><p>מידע למחקר בלבד. ללא ביצוע עסקאות. סטאפים מזוהים בחוקים ניסיוניים. כל הניתוחים מחושבים על פי נתוני מסחר באמצעות Python, ללא סקירת תמונה באמצעות OpenAI.</p>'''+''.join(cards)+'</main></html>'
     (OUT/"report.html").write_text(document,encoding="utf-8")
 
@@ -198,7 +221,11 @@ def main():
             outlook=scenario(d,levels)
             chart(d,s,OUT/"charts"/f"{s}.png",a["active"],levels)
             checklist=build_checklist(d,a)
-            results.append({"symbol":s,"analysis":a,"checklist":checklist,"levels":levels,"outlook":outlook})
+            patterns=[{"date":str(d.tail(95).iloc[i].date),"pattern":p}
+                      for i,p in visible_bullish_patterns(d)]
+            results.append({"symbol":s,"analysis":a,"checklist":checklist,
+                            "levels":levels,"outlook":outlook,
+                            "bullish_patterns":patterns})
             print(f"{s}: {a['symbol_date']} {a['active']['status'] if a['active'] else 'NO ACTIVE SETUP'}")
         except Exception as e:
             results.append({"symbol":s,"error":str(e)})

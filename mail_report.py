@@ -22,8 +22,8 @@ def delivery_decision(event, now=None):
     if not now.tzinfo:
         raise ValueError("timezone-aware datetime required")
     israel=now.astimezone(ZoneInfo("Asia/Jerusalem"))
-    if event=="schedule" and not (israel.hour in (6,7)):
-        return False,None,"Outside Israeli 06:00-06:59 delivery window"
+    if event=="schedule" and not (6<=israel.hour<=9):
+        return False,None,"Outside Israeli 06:00-09:59 delivery window"
     calendar=mcal.get_calendar("NYSE")
     day=now.astimezone(ZoneInfo("America/New_York")).date()
     sessions=calendar.schedule(start_date=day-timedelta(days=7),end_date=day)
@@ -265,13 +265,13 @@ def main():
         smtp.send_message(msg)
     from pathlib import Path
     Path("delivery_marker.txt").write_text(
-        "SMTP send accepted for NYSE session "+session_date.isoformat()+"\\n",
+        "SMTP send accepted for NYSE session "+session_date.isoformat()+"\n",
         encoding="utf-8")
     dest=os.getenv("GITHUB_OUTPUT")
     if dest:
         with open(dest,"a",encoding="utf-8") as output:
-            output.write("sent=true\\n")
-            output.write("session_date="+session_date.isoformat()+"\\n")
+            output.write("sent=true\n")
+            output.write("session_date="+session_date.isoformat()+"\n")
     print("METHOD20_EMAIL_SENT session="+session_date.isoformat()
           +" recipient="+TO,flush=True)
 

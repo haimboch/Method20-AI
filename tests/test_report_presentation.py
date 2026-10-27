@@ -2,8 +2,17 @@ import unittest
 import pandas as pd
 from report_format import fmt2, fmt_signed, format_numbers_in_text
 from levels import structure
+from engine import visible_bullish_patterns
 
 class ReportPresentationTests(unittest.TestCase):
+    def test_bullish_candles_highlighted_without_signal_confirmation(self):
+        d=pd.DataFrame([
+            {"open":10.0,"high":11.0,"low":9.5,"close":10.8},
+            {"open":10.8,"high":11.0,"low":9.5,"close":10.0},
+            {"open":9.9,"high":11.4,"low":9.7,"close":11.2},
+        ])
+        self.assertIn((2,"BULLISH_ENGULFING"),visible_bullish_patterns(d))
+        self.assertEqual(len(visible_bullish_patterns(d.tail(2))),1)
     def test_numbers_are_two_decimals(self):
         self.assertEqual(fmt2(123.45678),"123.46")
         self.assertEqual(fmt_signed(-12.345),"-12.35")

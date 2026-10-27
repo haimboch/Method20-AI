@@ -44,6 +44,18 @@ def github_get(session,path,params=None):
     r.raise_for_status()
     return r.json()
 
+def already_sent(session,repo,session_date):
+    """Only an explicit artifact uploaded after successful SMTP send counts."""
+    marker="method20-sent-"+session_date.isoformat()
+    artifacts=github_get(
+        session,"/repos/"+repo+"/actions/artifacts",
+        {"name":marker,"per_page":100}
+    ).get("artifacts",[])
+    exists=any(x.get("name")==marker and not x.get("expired") for x in artifacts)
+    print("EMAIL_DELIVERY_MARKER session="+session_date.isoformat()
+          +" exists="+str(exists),flush=True)
+    return exists
+
 def find_artifact(session,repo,session_date,now):
     runs=github_get(session,"/repos/"+repo+"/actions/workflows/report.yml/runs",
                     {"per_page":50,"status":"success"}).get("workflow_runs",[])
@@ -238,6 +250,9 @@ def main():
     session.headers.update({"Authorization":"Bearer "+token,
                             "Accept":"application/vnd.github+json",
                             "X-GitHub-Api-Version":"2022-11-28"})
+    if already_sent(session,repo,session_date):
+        print("EMAIL_ALREADY_SENT session="+session_date.isoformat(),flush=True)
+        return
     try:
         raw,results,url=find_artifact(session,repo,session_date,now)
         print("EOD_EXISTING_ARTIFACT_FOUND session="+session_date.isoformat(),flush=True)
@@ -248,6 +263,15 @@ def main():
     with smtplib.SMTP_SSL("smtp.gmail.com",465,timeout=45) as smtp:
         smtp.login(TO,password)
         smtp.send_message(msg)
+    from pathlib import Path
+    Path("delivery_marker.txt").write_text(
+        "SMTP send accepted for NYSE session "+session_date.isoformat()+"\\n",
+        encoding="utf-8")
+    dest=os.getenv("GITHUB_OUTPUT")
+    if dest:
+        with open(dest,"a",encoding="utf-8") as output:
+            output.write("sent=true\\n")
+            output.write("session_date="+session_date.isoformat()+"\\n")
     print("METHOD20_EMAIL_SENT session="+session_date.isoformat()
           +" recipient="+TO,flush=True)
 

@@ -47,7 +47,6 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
           MASSIVE_API_KEY: ${{ secrets.MASSIVE_API_KEY }}
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           GITHUB_EVENT_NAME: ${{ github.event_name }}
         run: |

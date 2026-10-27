@@ -22,7 +22,7 @@ def delivery_decision(event, now=None):
     if not now.tzinfo:
         raise ValueError("timezone-aware datetime required")
     israel=now.astimezone(ZoneInfo("Asia/Jerusalem"))
-    if event=="schedule" and not (israel.hour==6 and israel.minute<=59):
+    if event=="schedule" and not (israel.hour in (6,7)):
         return False,None,"Outside Israeli 06:00-06:59 delivery window"
     calendar=mcal.get_calendar("NYSE")
     day=now.astimezone(ZoneInfo("America/New_York")).date()

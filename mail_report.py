@@ -88,9 +88,6 @@ def find_artifact(session,repo,session_date,now):
                 results=json.loads(z.read("results.json"))
                 if not results or any("error" in item for item in results):
                     continue
-                # Require visual reviews for each ticker before emailing complete report.
-                if any(item.get("ai_review",{}).get("status")!="COMPLETE" for item in results):
-                    raise ValueError("A completed nightly report has incomplete AI reviews")
                 return raw,results,run["html_url"]
     raise LookupError("No complete and verified EOD artifact for NYSE session "+session_date.isoformat())
 
@@ -98,7 +95,7 @@ def regenerate_missing_report(session_date):
     """Recovery only: fetch the exact closed trading session and rebuild the report.
 
     Runs the AI only when there is no complete reusable artifact. Fail closed on
-    missing/old data, partial ticker coverage or incomplete visual reviews.
+    missing/old data or partial ticker coverage.
     """
     from pathlib import Path
     import engine
@@ -118,8 +115,7 @@ def regenerate_missing_report(session_date):
     if (meta.get("session_date")!=session_date.isoformat()
         or not meta.get("complete") or not results
         or len(results)!=meta.get("expected_ticker_count")
-        or any("error" in r or r.get("ai_review",{}).get("status")!="COMPLETE"
-               for r in results)):
+        or any("error" in r for r in results)):
         raise RuntimeError("Recovered report failed complete-date-and-AI validation")
     contents=io.BytesIO()
     with zipfile.ZipFile(contents,"w",compression=zipfile.ZIP_DEFLATED) as z:
@@ -179,8 +175,7 @@ def make_message(raw,results,session_date,run_url):
         for index,item in enumerate(results):
             sym=html.escape(item["symbol"])
             a=item["analysis"]
-            ai=item.get("ai_review",{})
-            levels=item.get("levels",{})
+                levels=item.get("levels",{})
             outlook=item.get("outlook",{})
             def prices(name):
                 entries=levels.get(name,[])
@@ -213,8 +208,6 @@ def make_message(raw,results,session_date,run_url):
             parts.append('<img alt="Daily '+sym+' chart" src="cid:'+cid+'" '
                          'style="display:block;width:100%;height:auto;margin:12px 0"/>')
             parts.extend([
-                '<h3 style="margin:12px 0 6px">ניתוח AI חזותי</h3>',
-                '<p style="line-height:1.6;white-space:pre-line">'+safe(ai.get("text"))+'</p>',
                 '</section>'
             ])
     parts.extend(['<p style="font-size:12px">מקור הדוח: <a href="'

@@ -6,6 +6,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
+from matplotlib.ticker import FormatStrFormatter
 
 ROOT=Path(__file__).resolve().parent
 OUT=ROOT/"output"
@@ -117,7 +118,12 @@ def chart(d,symbol,path,a,levels=None):
             ax.axhspan(z["low"],z["high"],color="#16815c",alpha=0.20,label="Support zone")
         for z in levels["resistance"]:
             ax.axhspan(z["low"],z["high"],color="#b75a4c",alpha=0.20,label="Resistance zone")
-    ax.set_title(symbol+"  |  1D  |  "+str(d.iloc[-1].date))
+    ax.yaxis.set_major_formatter(FormatStrFormatter("%.2f"))
+    cax.yaxis.set_major_formatter(FormatStrFormatter("%.2f"))
+    ax.tick_params(axis="both",labelsize=11)
+    vax.tick_params(axis="both",labelsize=10)
+    cax.tick_params(axis="both",labelsize=10)
+    ax.set_title(symbol+"  |  1D  |  "+str(d.iloc[-1].date),fontsize=16)
     ax.legend(loc="upper left")
     ax.grid(alpha=.17)
     vax.set_ylabel("VOL")

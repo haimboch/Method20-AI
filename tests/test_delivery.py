@@ -78,7 +78,6 @@ class DeliveryTests(unittest.TestCase):
                               "cci14":32.1,"volume_ratio":1.2,
                               "change_5d_pct":3.1,"change_21d_pct":8.2,
                               "active":{"setup":"B: SMA20_BOUNCE","high":102,"low":98}},
-                  "ai_review":{"status":"COMPLETE","text":"סקירה חזותית לדוגמה"},
                   "levels":{"support":[{"price":97}],"resistance":[{"price":105}]},
                   "outlook":{"bias":"נטייה שורית","reason":"עלייה",
                              "bull_case":"מעל התנגדות","bear_case":"מתחת לתמיכה"}}]
@@ -92,7 +91,7 @@ class DeliveryTests(unittest.TestCase):
                          datetime(2026,7,6).date(),"https://github.com/test")
         self.assertEqual(msg["To"],"Haimboch@gmail.com")
         self.assertIn("2026-07-06",msg["Subject"])
-        self.assertIn("סקירה חזותית לדוגמה",msg.get_body(preferencelist=("html",)).get_content())
+        self.assertNotIn("ניתוח AI חזותי",msg.get_body(preferencelist=("html",)).get_content())
         self.assertIn("cid:method20-chart-0@local",msg.get_body(preferencelist=("html",)).get_content())
         self.assertFalse(any(p.get_filename() and p.get_filename().endswith(".zip")
                              for p in msg.walk()))
@@ -110,7 +109,7 @@ class DeliveryTests(unittest.TestCase):
             (root/"report.html").write_text("<html>report</html>")
             (root/"results.json").write_text(json.dumps([
                 {"symbol":"MU","analysis":{"symbol_date":"2026-10-23"},
-                 "ai_review":{"status":"COMPLETE"}}]))
+                 }]))
             (root/"metadata.json").write_text(json.dumps({
                 "session_date":"2026-10-23","complete":True,
                 "expected_ticker_count":1}))
@@ -137,13 +136,13 @@ class DeliveryTests(unittest.TestCase):
                 "session_date":"2026-10-23","complete":False,
                 "expected_ticker_count":1}))
             (root/"results.json").write_text(json.dumps([
-                {"symbol":"MU","ai_review":{"status":"UNAVAILABLE"}}]))
+                {"symbol":"MU","error":"missing bars"}]))
             with patch.object(engine,"OUT",root),patch.object(engine,"main"):
                 with self.assertRaisesRegex(RuntimeError,"failed"):
                     regenerate_missing_report(datetime(2026,10,23).date())
 
     def test_missing_chart_fails_before_sending(self):
-        result=[{"symbol":"MU","analysis":{"status":"READY"},"ai_review":{"text":"ok"}}]
+        result=[{"symbol":"MU","analysis":{"status":"READY"}}]
         archive=io.BytesIO()
         with zipfile.ZipFile(archive,"w") as z:
             z.writestr("results.json","[]")

@@ -1,5 +1,4 @@
 import os, json, time, html
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 import pandas as pd
 import numpy as np
@@ -98,7 +97,6 @@ def indicators(d):
 
 from signals import analyze, classify, candle_pattern, transition
 from checklist import build_checklist
-from ai_review import review_chart
 from levels import structure, scenario
 
 def chart(d,symbol,path,a,levels=None):
@@ -147,9 +145,6 @@ def render(results):
         old=a["last_event"]
         prior=(f'אירוע קודם: {html.escape(old["status"])} בתאריך {html.escape(old.get("event_date",""))}' if old else "אין אירוע קודם")
         checkrows=''.join('<tr><td>'+html.escape(str(k))+'</td><td>'+html.escape(str(v))+'</td></tr>' for k,v,_ in r.get('checklist',[]))
-        ai=r.get('ai_review',{'status':'NOT_CONFIGURED','text':'ניתוח AI לא הופעל.'})
-        ai_txt=html.escape(ai.get('text',''))
-        ai_stat=html.escape(ai.get('status','NOT_CONFIGURED'))
         lv=r.get("levels",{})
         outlook=r.get("outlook",{})
         def fmtlevels(values):
@@ -161,8 +156,8 @@ def render(results):
         bull=html.escape(outlook.get("bull_case",""))
         bear=html.escape(outlook.get("bear_case",""))
 
-        cards.append(f'<section><h2>{sym} <small>{html.escape(status)}</small></h2><p>תאריך נר אחרון: {html.escape(a["symbol_date"])}</p><p>סגירה: ${a["close"]:.2f} | SMA20: ${a["sma20"]:.2f} | CCI14: {a["cci14"]:.1f} | Volume / Avg20: {a["volume_ratio"]:.2f}x</p><p>שינוי 5 ימים: {a["change_5d_pct"]:+.2f}% | שינוי 21 ימים: {a["change_21d_pct"]:+.2f}%</p><p>סטאפ: {html.escape(setup)}. {prior}</p><div class="panel"><h3>תמיכה והתנגדות</h3><p>תמיכות: {support_text}</p><p>התנגדויות: {resistance_text}</p><h3>תרחיש ליום הבא: {bias_text}</h3><p>{reasons}</p><p>תרחיש שורי: {bull}</p><p>תרחיש דובי: {bear}</p><small>תרחישים מותנים, לא תחזית הסתברותית מאומתת.</small></div><div class="panel"><h3>צ׳קליסט METHOD 20</h3><table>{checkrows}</table></div><img src="charts/{sym}.png" alt="Daily chart for {sym}" loading="lazy"/><div class="panel"><h3>ניתוח תמונת הגרף באמצעות AI | {ai_stat}</h3><p>{ai_txt}</p></div></section>')
-    document='''<!doctype html><html lang="he" dir="rtl"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>METHOD 20</title><style>body{font-family:Arial,sans-serif;background:#f3f5f9;color:#172331;margin:0;padding:20px}main{max-width:1050px;margin:auto}section{background:white;padding:20px;margin:18px 0;border-radius:16px;box-shadow:0 1px 7px #0001}img{max-width:100%;height:auto}small{font-size:14px;color:#666}.panel{background:#f5f7fa;padding:12px;border-radius:10px;margin:12px 0}table{width:100%;border-collapse:collapse}td{padding:8px;border-bottom:1px solid #ddd}td:first-child{font-weight:bold}.err{color:#aa3333}p{line-height:1.65}</style><main><h1>METHOD 20 AI | דוח פיילוט</h1><p>מידע למחקר בלבד. ללא ביצוע עסקאות. סטאפים מזוהים בחוקים ניסיוניים. ניתוח חזותי יופיע רק אם הוגדר מפתח OPENAI_API_KEY; הסיווג המספרי נשאר עצמאי.</p>'''+''.join(cards)+'</main></html>'
+        cards.append(f'<section><h2>{sym} <small>{html.escape(status)}</small></h2><p>תאריך נר אחרון: {html.escape(a["symbol_date"])}</p><p>סגירה: ${a["close"]:.2f} | SMA20: ${a["sma20"]:.2f} | CCI14: {a["cci14"]:.1f} | Volume / Avg20: {a["volume_ratio"]:.2f}x</p><p>שינוי 5 ימים: {a["change_5d_pct"]:+.2f}% | שינוי 21 ימים: {a["change_21d_pct"]:+.2f}%</p><p>סטאפ: {html.escape(setup)}. {prior}</p><div class="panel"><h3>תמיכה והתנגדות</h3><p>תמיכות: {support_text}</p><p>התנגדויות: {resistance_text}</p><h3>תרחיש ליום הבא: {bias_text}</h3><p>{reasons}</p><p>תרחיש שורי: {bull}</p><p>תרחיש דובי: {bear}</p><small>תרחישים מותנים, לא תחזית הסתברותית מאומתת.</small></div><div class="panel"><h3>צ׳קליסט METHOD 20</h3><table>{checkrows}</table></div><img src="charts/{sym}.png" alt="Daily chart for {sym}" loading="lazy"/></section>')
+    document='''<!doctype html><html lang="he" dir="rtl"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>METHOD 20</title><style>body{font-family:Arial,sans-serif;background:#f3f5f9;color:#172331;margin:0;padding:20px}main{max-width:1050px;margin:auto}section{background:white;padding:20px;margin:18px 0;border-radius:16px;box-shadow:0 1px 7px #0001}img{max-width:100%;height:auto}small{font-size:14px;color:#666}.panel{background:#f5f7fa;padding:12px;border-radius:10px;margin:12px 0}table{width:100%;border-collapse:collapse}td{padding:8px;border-bottom:1px solid #ddd}td:first-child{font-weight:bold}.err{color:#aa3333}p{line-height:1.65}</style><main><h1>METHOD 20 AI | דוח פיילוט</h1><p>מידע למחקר בלבד. ללא ביצוע עסקאות. סטאפים מזוהים בחוקים ניסיוניים. כל הניתוחים מחושבים על פי נתוני מסחר באמצעות Python, ללא סקירת תמונה באמצעות OpenAI.</p>'''+''.join(cards)+'</main></html>'
     (OUT/"report.html").write_text(document,encoding="utf-8")
 
 def main():
@@ -201,27 +196,6 @@ def main():
         except Exception as e:
             results.append({"symbol":s,"error":str(e)})
             print(f"{s}: ERROR type={type(e).__name__} detail={e}",flush=True)
-    # Generate chart images sequentially (matplotlib is not thread-safe).
-    # Only the I/O-bound AI calls run concurrently, with a conservative cap.
-    def one_review(item):
-        symbol=item["symbol"]
-        return review_chart(
-            symbol,OUT/"charts"/f"{symbol}.png",
-            {"analysis":item["analysis"],"checklist":item["checklist"],
-             "levels":item["levels"],"next_session_outlook":item["outlook"]})
-    valid=[item for item in results if "error" not in item]
-    if valid:
-        with ThreadPoolExecutor(max_workers=3) as pool:
-            tasks={pool.submit(one_review,item):item for item in valid}
-            for task in as_completed(tasks):
-                item=tasks[task]
-                try:
-                    item["ai_review"]=task.result()
-                except Exception as exc:
-                    item["ai_review"]={"status":"UNAVAILABLE",
-                        "text":"ניתוח AI נכשל עקב תקלה בלתי צפויה."}
-                    print("AI_REVIEW_FAILED ticker="+item["symbol"]+
-                          " category=UNEXPECTED_ERROR",flush=True)
     render(results)
     errors=[x["symbol"] for x in results if "error" in x]
     if errors:
@@ -233,13 +207,13 @@ def main():
             "symbols":[r["symbol"] for r in results],
             "expected_ticker_count":len(symbols),
             "analyzed_ticker_count":len(results)-len(errors),
-            "ai_complete_count":sum(r.get("ai_review",{}).get("status")=="COMPLETE" for r in results),
+            "ai_complete_count":0,
+            "visual_ai_enabled":False,
             "ready_count":sum(r.get("analysis",{}).get("status")=="READY" for r in results),
             "triggered_count":sum(r.get("analysis",{}).get("status")=="TRIGGERED" for r in results),
             "failed_symbols":errors,
             "failure_details":{r["symbol"]:r["error"] for r in results if "error" in r},
-            "complete":not errors and all(
-                r.get("ai_review",{}).get("status")=="COMPLETE" for r in results)}
+            "complete":not errors}
     (OUT/"metadata.json").write_text(
         json.dumps(health,ensure_ascii=False,indent=2),encoding="utf-8")
     print("REPORT_HEALTH",json.dumps(health,ensure_ascii=False),flush=True)

@@ -3,7 +3,7 @@ import math
 import re
 from numbers import Real
 
-_NUM=re.compile(r'(?<![A-Za-z0-9_])([+-]?\d+\.\d{3,})(?![A-Za-z0-9_])')
+_NUM=re.compile(r'(?<![A-Za-z0-9_])([+-]?\d+\.\d{3,})(?![0-9.])')
 
 def fmt2(value):
     if value is None:

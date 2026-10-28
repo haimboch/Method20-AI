@@ -69,6 +69,18 @@ class DeliveryTests(unittest.TestCase):
             {"name":"method20-sent-2026-10-26","expired":False}]}):
             self.assertTrue(already_sent(Dummy(),"owner/repo",
                 datetime(2026,10,26).date()))
+    def test_repeated_winter_morning_checks(self):
+        for ts in ("2026-10-28T04:07:00","2026-10-28T04:27:00",
+                   "2026-10-28T05:47:00","2026-10-28T07:47:00"):
+            ok,day,reason=self.check(ts)
+            self.assertTrue(ok,(ts,reason))
+            self.assertEqual(day.isoformat(),"2026-10-27")
+    def test_repeated_summer_morning_checks(self):
+        for ts in ("2026-07-08T03:07:00","2026-07-08T03:47:00",
+                   "2026-07-08T06:27:00"):
+            ok,day,reason=self.check(ts)
+            self.assertTrue(ok,(ts,reason))
+            self.assertEqual(day.isoformat(),"2026-07-07")
     def test_holiday_skips(self):
         ok,_,_=self.check("2026-12-26T04:10:00")
         self.assertFalse(ok)

@@ -2,11 +2,10 @@ name: METHOD 20 Morning Email
 on:
   workflow_dispatch:
   schedule:
-    # Two eligible local runs at 06:17 and 07:17 in either Israeli timezone.
-    # The first finished delivery is cached to suppress the retry.
-    - cron: "17 3 * * 1-6"
-    - cron: "17 4 * * 1-6"
-    - cron: "17 5 * * 1-6"
+    # Repeated UTC checks support both Israeli DST seasons.
+    # Morning gate and delivery cache suppress all non-eligible/duplicate runs.
+    # GitHub Actions scheduled runs can be delayed or omitted under load.
+    - cron: "07,27,47 3-7 * * 1-6"
 
 permissions:
   contents: read

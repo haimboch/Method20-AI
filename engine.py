@@ -96,15 +96,37 @@ def indicators(d):
     d["cci"]=((tp-avg)/(0.015*mad.replace(0,np.nan)))
     return d
 
-from signals import analyze, classify, candle_pattern, transition
+from signals import analyze, classify, candle_pattern, transition, sma20_context, visual_reversal
 from checklist import build_checklist
 from levels import structure, scenario
 from report_format import fmt2, fmt_signed, format_numbers_in_text
 
-from bullish_patterns import detect as detect_bullish_patterns, PATTERNS
+from bullish_patterns import PATTERNS
+PATTERN_LABELS={**PATTERNS,"DOJI":"Doji","HAMMER":"Hammer","BULLISH_REJECTION":"Bullish Rejection"}
 
 def visible_bullish_patterns(d):
-    return detect_bullish_patterns(d.tail(95).reset_index(drop=True),last_n=10)
+    """Only annotate confirmed shape formations around/below SMA20."""
+    view=d.tail(95).reset_index(drop=True)
+    first=max(0,len(view)-10)
+    selected=[]
+    for i in range(first,len(view)):
+        reversal=visual_reversal(view,i)
+        if not reversal: continue
+        name,start,end=reversal
+        if start<first: continue
+        low=float(view.low.iloc[start:end+1].min())
+        high=float(view.high.iloc[start:end+1].max())
+        candidate={"pattern":name,"start":start,"end":end,
+                   "start_date":str(view.iloc[start].date),
+                   "end_date":str(view.iloc[end].date),
+                   "low":low,"high":high}
+        if selected and start<=selected[-1]["end"]:
+            old=selected[-1]
+            if end-start>old["end"]-old["start"]:
+                selected[-1]=candidate
+        else:
+            selected.append(candidate)
+    return selected
 
 def reversal_for_chart(analysis,view):
     if not analysis:
@@ -136,12 +158,12 @@ def chart(d,symbol,path,a,levels=None):
                                end-start+1.08,span*1.16,
                                fill=False,edgecolor="#c18a00",linewidth=2.2,
                                zorder=7))
-        ax.annotate(PATTERNS[pattern["pattern"]],
+        ax.annotate(PATTERN_LABELS[pattern["pattern"]],
                     ((start+end)/2,pattern["high"]+span*.20),
                     fontsize=8,color="#9d6f00",ha="center",zorder=8)
     if bullish:
         ax.scatter([],[],marker="s",facecolors="none",edgecolors="#c18a00",
-                   label="Bullish pattern (last 10)")
+                   label="Reversal near/below SMA20 (last 10)")
     reversal=reversal_for_chart(a,d)
     if reversal:
         index,signal=reversal
@@ -206,7 +228,7 @@ def render(results):
         bull=html.escape(format_numbers_in_text(outlook.get("bull_case","")))
         bear=html.escape(format_numbers_in_text(outlook.get("bear_case","")))
 
-        cards.append(f'<section><h2>{sym} <small>{html.escape(status)}</small></h2><p>תאריך נר אחרון: {html.escape(a["symbol_date"])}</p><p>סגירה: ${a["close"]:.2f} | SMA20: ${a["sma20"]:.2f} | CCI14: {fmt2(a["cci14"])} | Volume / Avg20: {a["volume_ratio"]:.2f}x</p><p>שינוי 5 ימים: {a["change_5d_pct"]:+.2f}% | שינוי 21 ימים: {a["change_21d_pct"]:+.2f}%</p><p>סטאפ: {html.escape(setup)}. {prior}</p><div class="panel"><h3>תמיכה והתנגדות</h3><p>תמיכות: {support_text}</p><p>התנגדויות: {resistance_text}</p><h3>תרחיש ליום הבא: {bias_text}</h3><p>{reasons}</p><p>תרחיש שורי: {bull}</p><p>תרחיש דובי: {bear}</p><small>תרחישים מותנים, לא תחזית הסתברותית מאומתת.</small></div><p><b>תבניות שוריות (2–3 נרות, בעשרת האחרונים):</b> {len(patterns)} (זהב: תבנית, כחול: נר איתות ומחיר טריגר; תבנית לבדה אינה אישור כניסה)</p><div class="panel"><h3>צ׳קליסט METHOD 20</h3><table>{checkrows}</table></div><img class="chart" src="charts/{sym}.png" alt="Daily chart for {sym}" loading="lazy"/></section>')
+        cards.append(f'<section><h2>{sym} <small>{html.escape(status)}</small></h2><p>תאריך נר אחרון: {html.escape(a["symbol_date"])}</p><p>סגירה: ${a["close"]:.2f} | SMA20: ${a["sma20"]:.2f} | CCI14: {fmt2(a["cci14"])} | Volume / Avg20: {a["volume_ratio"]:.2f}x</p><p>שינוי 5 ימים: {a["change_5d_pct"]:+.2f}% | שינוי 21 ימים: {a["change_21d_pct"]:+.2f}%</p><p>סטאפ: {html.escape(setup)}. {prior}</p><div class="panel"><h3>תמיכה והתנגדות</h3><p>תמיכות: {support_text}</p><p>התנגדויות: {resistance_text}</p><h3>תרחיש ליום הבא: {bias_text}</h3><p>{reasons}</p><p>תרחיש שורי: {bull}</p><p>תרחיש דובי: {bear}</p><small>תרחישים מותנים, לא תחזית הסתברותית מאומתת.</small></div><p><b>תבניות/נרות היפוך בקרבת SMA20 או מתחתיו (10 אחרונים):</b> {len(patterns)} (זהב: תבנית, כחול: נר איתות ומחיר טריגר; תבנית לבדה אינה אישור כניסה)</p><div class="panel"><h3>צ׳קליסט METHOD 20</h3><table>{checkrows}</table></div><img class="chart" src="charts/{sym}.png" alt="Daily chart for {sym}" loading="lazy"/></section>')
     document='''<!doctype html><html lang="he" dir="rtl"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>METHOD 20</title><style>body{font-family:Arial,sans-serif;background:#f3f5f9;color:#172331;margin:0;padding:20px}main{max-width:1350px;margin:auto}section{background:white;padding:20px;margin:18px 0;border-radius:16px;box-shadow:0 1px 7px #0001}img{width:100%;max-width:100%;height:auto;display:block;margin:12px auto}small{font-size:14px;color:#666}.panel{background:#f5f7fa;padding:12px;border-radius:10px;margin:12px 0}table{width:100%;border-collapse:collapse}td{padding:8px;border-bottom:1px solid #ddd}td:first-child{font-weight:bold}.err{color:#aa3333}p{line-height:1.65}</style><main><h1>METHOD 20 AI | דוח פיילוט</h1><p>מידע למחקר בלבד. ללא ביצוע עסקאות. סטאפים מזוהים בחוקים ניסיוניים. כל הניתוחים מחושבים על פי נתוני מסחר באמצעות Python, ללא סקירת תמונה באמצעות OpenAI.</p>'''+''.join(cards)+'</main></html>'
     (OUT/"report.html").write_text(document,encoding="utf-8")
 

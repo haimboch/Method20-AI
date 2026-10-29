@@ -26,3 +26,12 @@ def detect(d,last_n=10):
                 name="THREE_OUTSIDE_UP"
             if name:
                 width=3
+        if not name:
+            if a[3]<a[0] and b[3]>b[0] and b[0]<=a[3] and b[3]>=a[0]:
+                name="BULLISH_ENGULFING"
+            elif a[3]<a[0] and b[3]>b[0] and a[3]<=b[0]<b[3]<=a[0] and b[4]<a[4]*.8:
+                name="BULLISH_HARAMI"
+            elif a[3]<a[0] and b[3]>b[0] and b[0]<=a[3] and (a[0]+a[3])/2<=b[3]<a[0] and a[4]/a[5]>=.4:
+                name="PIERCING_LINE"
+            elif a[3]<a[0] and b[3]>b[0] and abs(a[2]-b[2])<=max(abs(a[2]),.01)*.003:
+                name="TWEEZER_BOTTOM"

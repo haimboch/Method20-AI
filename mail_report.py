@@ -198,6 +198,8 @@ def make_message(raw,results,session_date,run_url):
                 '<p><b>תבניות נרות שוריות בגרף:</b> '+str(len(bullish))+' | זהב: תבנית 2–3 נרות בעשרת האחרונים; כחול: נר איתות וטריגר.</p>',
             ])
             active=a.get("active") or a.get("last_event")
+            if active and active.get("status") not in ("READY","TRIGGERED"):
+                active=None
             if active:
                 parts.append('<p><b>נר איתות METHOD 20:</b> '+safe(active.get("setup"))
                              +'; תאריך: '+safe(active.get("signal_date"))

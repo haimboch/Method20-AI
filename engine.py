@@ -100,6 +100,7 @@ from signals import analyze, classify, candle_pattern, transition, sma20_context
 from checklist import build_checklist
 from levels import structure, scenario
 from report_format import fmt2, fmt_signed, format_numbers_in_text
+from report_sections import grouped_results, section_key, signal_for_display, signal_explanation
 
 from bullish_patterns import PATTERNS
 PATTERN_LABELS={**PATTERNS,"DOJI":"Doji","HAMMER":"Hammer","BULLISH_REJECTION":"Bullish Rejection"}
@@ -204,7 +205,17 @@ def chart(d,symbol,path,a,levels=None):
 
 def render(results):
     cards=[]
-    for r in results:
+    groups=grouped_results(results)
+    ordered=[r for _,_,items in groups for r in items]
+    title_by_key={key:title for key,title,_ in groups}
+    count_by_key={key:len(items) for key,_,items in groups}
+    previous_group=None
+    for r in ordered:
+        group=section_key(r)
+        if group!=previous_group:
+            cards.append('<h2 style="margin:28px 0 6px">'+html.escape(title_by_key[group])
+                         +' ('+str(count_by_key[group])+')</h2>')
+            previous_group=group
         sym=html.escape(r["symbol"])
         if "error" in r:
             cards.append(f'<section><h2>{sym}</h2><p class="err">נתונים לא זמינים: {html.escape(r["error"])}</p></section>')

@@ -144,27 +144,19 @@ def reversal_for_chart(analysis,view):
 
 def chart(d,symbol,path,a,levels=None):
     d=d.tail(95).reset_index(drop=True)
-    fig,(ax,vax,cax)=plt.subplots(3,1,figsize=(15,10),sharex=True,gridspec_kw={"height_ratios":[6,1.5,1.8]})
+    fig,(ax,cax)=plt.subplots(2,1,figsize=(15,9),sharex=True,gridspec_kw={"height_ratios":[6,1.8]})
     for i,x in d.iterrows():
         color="#12805c" if x.close>=x.open else "#c44747"
         ax.vlines(i,x.low,x.high,color=color,lw=1)
         ax.add_patch(Rectangle((i-.33,min(x.open,x.close)),.66,max(abs(x.close-x.open),.001),color=color))
-        vax.bar(i,x.volume,color=color,width=.75)
     ax.plot(np.arange(len(d)),d.sma20,color="#e5a522",lw=2.2,label="SMA20")
-    if levels:
-        for z in levels["support"]:
-            ax.axhspan(z["low"],z["high"],color="#16815c",alpha=0.20,label="Support zone")
-        for z in levels["resistance"]:
-            ax.axhspan(z["low"],z["high"],color="#b75a4c",alpha=0.20,label="Resistance zone")
     ax.yaxis.set_major_formatter(FormatStrFormatter("%.2f"))
     cax.yaxis.set_major_formatter(FormatStrFormatter("%.2f"))
     ax.tick_params(axis="both",labelsize=11)
-    vax.tick_params(axis="both",labelsize=10)
     cax.tick_params(axis="both",labelsize=10)
     ax.set_title(symbol+"  |  1D  |  "+str(d.iloc[-1].date),fontsize=16)
     ax.legend(loc="upper left")
     ax.grid(alpha=.17)
-    vax.set_ylabel("VOL")
     cax.plot(np.arange(len(d)),d.cci,color="#7359b8")
     cax.axhline(-100,color="#c44747",ls="--",lw=.8)
     cax.axhline(100,color="#12805c",ls="--",lw=.8)

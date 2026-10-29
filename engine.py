@@ -230,6 +230,175 @@ def render(results):
         lv=r.get("levels",{})
         outlook=r.get("outlook",{})
         patterns=r.get("bullish_patterns",[])
+        signal=signal_for_display(r)
+        if signal:
+            why=html.escape(signal_explanation(signal))
+            phase="ממתין לפריצה" if status=="READY" else "הטריגר נפרץ; הסטאפ עדיין לא נשבר"
+            signal_box=('<div class="panel"><h3>פירוט סטאפ METHOD 20</h3><p>'
+                        +why+'</p><p><b>סטטוס:</b> '+phase
+                        +' | <b>תאריך איתות:</b> '+html.escape(str(signal["signal_date"]))
+                        +'</p><p><b>טריגר כניסה:</b> פריצה מעל 
+        def fmtlevels(values):
+            return ", ".join("$"+fmt2(v["low"])+"–$"+fmt2(v["high"]) for v in values) if values else "אין אזור מאומת בחלון הסריקה"
+        support_text=html.escape(fmtlevels(lv.get("support",[])))
+        resistance_text=html.escape(fmtlevels(lv.get("resistance",[])))
+        bias_text=html.escape(outlook.get("bias","לא זמין"))
+        reasons=html.escape(format_numbers_in_text(outlook.get("reason","")))
+        bull=html.escape(format_numbers_in_text(outlook.get("bull_case","")))
+        bear=html.escape(format_numbers_in_text(outlook.get("bear_case","")))
+
+        cards.append(f'<section><h2>{sym} <small>{html.escape(status)}</small></h2><p>תאריך נר אחרון: {html.escape(a["symbol_date"])}</p><p>סגירה: ${a["close"]:.2f} | SMA20: ${a["sma20"]:.2f} | CCI14: {fmt2(a["cci14"])} | Volume / Avg20: {a["volume_ratio"]:.2f}x</p><p>שינוי 5 ימים: {a["change_5d_pct"]:+.2f}% | שינוי 21 ימים: {a["change_21d_pct"]:+.2f}%</p><p>סטאפ: {html.escape(setup)}. {prior}</p>{signal_box}<div class="panel"><h3>תמיכה והתנגדות</h3><p>תמיכות: {support_text}</p><p>התנגדויות: {resistance_text}</p><h3>תרחיש ליום הבא: {bias_text}</h3><p>{reasons}</p><p>תרחיש שורי: {bull}</p><p>תרחיש דובי: {bear}</p><small>תרחישים מותנים, לא תחזית הסתברותית מאומתת.</small></div><p><b>תבניות/נרות היפוך בקרבת SMA20 או מתחתיו (10 אחרונים):</b> {len(patterns)} (זהב: תבנית, כחול: נר איתות ומחיר טריגר; תבנית לבדה אינה אישור כניסה)</p><div class="panel"><h3>צ׳קליסט METHOD 20</h3><table>{checkrows}</table></div><img class="chart" src="charts/{sym}.png" alt="Daily chart for {sym}" loading="lazy"/></section>')
+    document='''<!doctype html><html lang="he" dir="rtl"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>METHOD 20</title><style>body{font-family:Arial,sans-serif;background:#f3f5f9;color:#172331;margin:0;padding:20px}main{max-width:1350px;margin:auto}section{background:white;padding:20px;margin:18px 0;border-radius:16px;box-shadow:0 1px 7px #0001}img{width:100%;max-width:100%;height:auto;display:block;margin:12px auto}small{font-size:14px;color:#666}.panel{background:#f5f7fa;padding:12px;border-radius:10px;margin:12px 0}table{width:100%;border-collapse:collapse}td{padding:8px;border-bottom:1px solid #ddd}td:first-child{font-weight:bold}.err{color:#aa3333}p{line-height:1.65}</style><main><h1>METHOD 20 AI | דוח פיילוט</h1><p>מידע למחקר בלבד. ללא ביצוע עסקאות. סטאפים מזוהים בחוקים ניסיוניים. כל הניתוחים מחושבים על פי נתוני מסחר באמצעות Python, ללא סקירת תמונה באמצעות OpenAI.</p>'''+''.join(cards)+'</main></html>'
+    (OUT/"report.html").write_text(document,encoding="utf-8")
+
+def main():
+    OUT.mkdir(exist_ok=True)
+    (OUT/"charts").mkdir(exist_ok=True)
+    symbols=[s.strip().upper() for s in (ROOT/"watchlist.txt").read_text().splitlines() if s.strip() and not s.startswith("#")]
+    if len(symbols)!=len(set(symbols)):
+        raise ValueError("watchlist.txt contains duplicate symbols")
+    if not 1<=len(symbols)<=40:
+        raise ValueError("Watchlist size must stay between 1 and 40 tickers")
+    print(f"WATCHLIST_COUNT={len(symbols)}",flush=True)
+    results=[]
+    # Conservative shared request pacing for vendor plans with low RPM limits.
+    # No local machine or extra secrets required.
+    request_interval=float(os.getenv("MASSIVE_REQUEST_INTERVAL_SEC","20"))
+    next_request_at=0.0
+    for s in symbols:
+        try:
+            remaining=next_request_at-time.monotonic()
+            if remaining>0:
+                print(f"DATA_RATE_LIMIT_PACING ticker={s} sleep_seconds={remaining:.1f}",flush=True)
+                time.sleep(remaining)
+            next_request_at=time.monotonic()+request_interval
+            d=indicators(fetch(s))
+            expected=os.getenv("EXPECTED_SESSION_DATE","").strip()
+            if expected and str(d.iloc[-1].date)!=expected:
+                raise ValueError("Stale latest daily candle: expected "+expected+
+                                 ", got "+str(d.iloc[-1].date))
+            a=analyze(d)
+            levels=structure(d,lookback=95)
+            outlook=scenario(d,levels)
+            chart(d,s,OUT/"charts"/f"{s}.png",a,levels)
+            checklist=build_checklist(d,a)
+            patterns=visible_bullish_patterns(d)
+            results.append({"symbol":s,"analysis":a,"checklist":checklist,
+                            "levels":levels,"outlook":outlook,
+                            "bullish_patterns":patterns})
+            print(f"{s}: {a['symbol_date']} {a['active']['status'] if a['active'] else 'NO ACTIVE SETUP'}")
+        except Exception as e:
+            results.append({"symbol":s,"error":str(e)})
+            print(f"{s}: ERROR type={type(e).__name__} detail={e}",flush=True)
+    render(results)
+    errors=[x["symbol"] for x in results if "error" in x]
+    if errors:
+        print("REPORT_INCOMPLETE tickers:",", ".join(errors),flush=True)
+    (OUT/"results.json").write_text(json.dumps(results,ensure_ascii=False,indent=2),encoding="utf-8")
+    session_date=os.getenv("EXPECTED_SESSION_DATE","").strip() or str(
+        next(x["analysis"]["symbol_date"] for x in results if "analysis" in x))
+    health={"session_date":session_date,
+            "symbols":[r["symbol"] for r in results],
+            "expected_ticker_count":len(symbols),
+            "analyzed_ticker_count":len(results)-len(errors),
+            "ai_complete_count":0,
+            "visual_ai_enabled":False,
+            "ready_count":sum(r.get("analysis",{}).get("status")=="READY" for r in results),
+            "triggered_count":sum(r.get("analysis",{}).get("status")=="TRIGGERED" for r in results),
+            "failed_symbols":errors,
+            "failure_details":{r["symbol"]:r["error"] for r in results if "error" in r},
+            "complete":not errors}
+    (OUT/"metadata.json").write_text(
+        json.dumps(health,ensure_ascii=False,indent=2),encoding="utf-8")
+    print("REPORT_HEALTH",json.dumps(health,ensure_ascii=False),flush=True)
+    print("Report:",OUT/"report.html")
+    if errors: raise SystemExit("Report incomplete; one or more ticker downloads failed")
+
+if __name__=="__main__":main()
++fmt2(signal["high"])
+                        +' | <b>סטופ טכני:</b> מתחת ל-
+        def fmtlevels(values):
+            return ", ".join("$"+fmt2(v["low"])+"–$"+fmt2(v["high"]) for v in values) if values else "אין אזור מאומת בחלון הסריקה"
+        support_text=html.escape(fmtlevels(lv.get("support",[])))
+        resistance_text=html.escape(fmtlevels(lv.get("resistance",[])))
+        bias_text=html.escape(outlook.get("bias","לא זמין"))
+        reasons=html.escape(format_numbers_in_text(outlook.get("reason","")))
+        bull=html.escape(format_numbers_in_text(outlook.get("bull_case","")))
+        bear=html.escape(format_numbers_in_text(outlook.get("bear_case","")))
+
+        cards.append(f'<section><h2>{sym} <small>{html.escape(status)}</small></h2><p>תאריך נר אחרון: {html.escape(a["symbol_date"])}</p><p>סגירה: ${a["close"]:.2f} | SMA20: ${a["sma20"]:.2f} | CCI14: {fmt2(a["cci14"])} | Volume / Avg20: {a["volume_ratio"]:.2f}x</p><p>שינוי 5 ימים: {a["change_5d_pct"]:+.2f}% | שינוי 21 ימים: {a["change_21d_pct"]:+.2f}%</p><p>סטאפ: {html.escape(setup)}. {prior}</p><div class="panel"><h3>תמיכה והתנגדות</h3><p>תמיכות: {support_text}</p><p>התנגדויות: {resistance_text}</p><h3>תרחיש ליום הבא: {bias_text}</h3><p>{reasons}</p><p>תרחיש שורי: {bull}</p><p>תרחיש דובי: {bear}</p><small>תרחישים מותנים, לא תחזית הסתברותית מאומתת.</small></div><p><b>תבניות/נרות היפוך בקרבת SMA20 או מתחתיו (10 אחרונים):</b> {len(patterns)} (זהב: תבנית, כחול: נר איתות ומחיר טריגר; תבנית לבדה אינה אישור כניסה)</p><div class="panel"><h3>צ׳קליסט METHOD 20</h3><table>{checkrows}</table></div><img class="chart" src="charts/{sym}.png" alt="Daily chart for {sym}" loading="lazy"/></section>')
+    document='''<!doctype html><html lang="he" dir="rtl"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>METHOD 20</title><style>body{font-family:Arial,sans-serif;background:#f3f5f9;color:#172331;margin:0;padding:20px}main{max-width:1350px;margin:auto}section{background:white;padding:20px;margin:18px 0;border-radius:16px;box-shadow:0 1px 7px #0001}img{width:100%;max-width:100%;height:auto;display:block;margin:12px auto}small{font-size:14px;color:#666}.panel{background:#f5f7fa;padding:12px;border-radius:10px;margin:12px 0}table{width:100%;border-collapse:collapse}td{padding:8px;border-bottom:1px solid #ddd}td:first-child{font-weight:bold}.err{color:#aa3333}p{line-height:1.65}</style><main><h1>METHOD 20 AI | דוח פיילוט</h1><p>מידע למחקר בלבד. ללא ביצוע עסקאות. סטאפים מזוהים בחוקים ניסיוניים. כל הניתוחים מחושבים על פי נתוני מסחר באמצעות Python, ללא סקירת תמונה באמצעות OpenAI.</p>'''+''.join(cards)+'</main></html>'
+    (OUT/"report.html").write_text(document,encoding="utf-8")
+
+def main():
+    OUT.mkdir(exist_ok=True)
+    (OUT/"charts").mkdir(exist_ok=True)
+    symbols=[s.strip().upper() for s in (ROOT/"watchlist.txt").read_text().splitlines() if s.strip() and not s.startswith("#")]
+    if len(symbols)!=len(set(symbols)):
+        raise ValueError("watchlist.txt contains duplicate symbols")
+    if not 1<=len(symbols)<=40:
+        raise ValueError("Watchlist size must stay between 1 and 40 tickers")
+    print(f"WATCHLIST_COUNT={len(symbols)}",flush=True)
+    results=[]
+    # Conservative shared request pacing for vendor plans with low RPM limits.
+    # No local machine or extra secrets required.
+    request_interval=float(os.getenv("MASSIVE_REQUEST_INTERVAL_SEC","20"))
+    next_request_at=0.0
+    for s in symbols:
+        try:
+            remaining=next_request_at-time.monotonic()
+            if remaining>0:
+                print(f"DATA_RATE_LIMIT_PACING ticker={s} sleep_seconds={remaining:.1f}",flush=True)
+                time.sleep(remaining)
+            next_request_at=time.monotonic()+request_interval
+            d=indicators(fetch(s))
+            expected=os.getenv("EXPECTED_SESSION_DATE","").strip()
+            if expected and str(d.iloc[-1].date)!=expected:
+                raise ValueError("Stale latest daily candle: expected "+expected+
+                                 ", got "+str(d.iloc[-1].date))
+            a=analyze(d)
+            levels=structure(d,lookback=95)
+            outlook=scenario(d,levels)
+            chart(d,s,OUT/"charts"/f"{s}.png",a,levels)
+            checklist=build_checklist(d,a)
+            patterns=visible_bullish_patterns(d)
+            results.append({"symbol":s,"analysis":a,"checklist":checklist,
+                            "levels":levels,"outlook":outlook,
+                            "bullish_patterns":patterns})
+            print(f"{s}: {a['symbol_date']} {a['active']['status'] if a['active'] else 'NO ACTIVE SETUP'}")
+        except Exception as e:
+            results.append({"symbol":s,"error":str(e)})
+            print(f"{s}: ERROR type={type(e).__name__} detail={e}",flush=True)
+    render(results)
+    errors=[x["symbol"] for x in results if "error" in x]
+    if errors:
+        print("REPORT_INCOMPLETE tickers:",", ".join(errors),flush=True)
+    (OUT/"results.json").write_text(json.dumps(results,ensure_ascii=False,indent=2),encoding="utf-8")
+    session_date=os.getenv("EXPECTED_SESSION_DATE","").strip() or str(
+        next(x["analysis"]["symbol_date"] for x in results if "analysis" in x))
+    health={"session_date":session_date,
+            "symbols":[r["symbol"] for r in results],
+            "expected_ticker_count":len(symbols),
+            "analyzed_ticker_count":len(results)-len(errors),
+            "ai_complete_count":0,
+            "visual_ai_enabled":False,
+            "ready_count":sum(r.get("analysis",{}).get("status")=="READY" for r in results),
+            "triggered_count":sum(r.get("analysis",{}).get("status")=="TRIGGERED" for r in results),
+            "failed_symbols":errors,
+            "failure_details":{r["symbol"]:r["error"] for r in results if "error" in r},
+            "complete":not errors}
+    (OUT/"metadata.json").write_text(
+        json.dumps(health,ensure_ascii=False,indent=2),encoding="utf-8")
+    print("REPORT_HEALTH",json.dumps(health,ensure_ascii=False),flush=True)
+    print("Report:",OUT/"report.html")
+    if errors: raise SystemExit("Report incomplete; one or more ticker downloads failed")
+
+if __name__=="__main__":main()
++fmt2(signal["low"])
+                        +'</p><small>מחירי הטריגר והסטופ נגזרים מקצוות תבנית האיתות; לא בוצעה הוראת מסחר.</small></div>')
+        else:
+            signal_box=""
+
         def fmtlevels(values):
             return ", ".join("$"+fmt2(v["low"])+"–$"+fmt2(v["high"]) for v in values) if values else "אין אזור מאומת בחלון הסריקה"
         support_text=html.escape(fmtlevels(lv.get("support",[])))

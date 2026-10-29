@@ -23,6 +23,33 @@ def candle_pattern(d, i):
         return "BULLISH_REJECTION"
     return None
 
+def sma20_context(d,i):
+    """Below SMA20 or testing it as support; no marks far above the average."""
+    if i<0 or i>=len(d): return False
+    x=d.iloc[i]
+    if pd.isna(x.sma20) or x.sma20<=0: return False
+    avg=float(x.sma20)
+    close=float(x.close)
+    low=float(x.low)
+    return close<avg or (low<=avg*1.005 and avg*.98<=close<=avg*1.025)
+
+def visual_reversal(d,i):
+    """Single candle rejection/hammer/doji or completed 2-3 bullish formation."""
+    from bullish_patterns import detect
+    if not sma20_context(d,i): return None
+    formations=detect(d.iloc[:i+1],last_n=3)
+    match=next((p for p in reversed(formations) if p["end"]==i),None)
+    if match: return match["pattern"],match["start"],i
+    x=d.iloc[i]
+    rng=float(x.high-x.low)
+    if rng<=0: return None
+    body=abs(float(x.close-x.open))
+    if body/rng<=.10: return "DOJI",i,i
+    shape=candle_pattern(d,i)
+    if shape in ("HAMMER","BULLISH_REJECTION"):
+        return shape,i,i
+    return None
+
 def cci_upturn(d, i):
     if i<2: return False
     values=[d.iloc[j].cci for j in (i-2,i-1,i)]
@@ -37,8 +64,9 @@ def classify(d,i):
     cur,prev=d.iloc[i],d.iloc[i-1]
     required=(cur.sma20,cur.cci,prev.cci,cur.volume,prev.volume,cur.vol20)
     if any(pd.isna(v) for v in required): return None
-    pattern=candle_pattern(d,i)
-    if not pattern or not cci_upturn(d,i): return None
+    reversal=visual_reversal(d,i)
+    if not reversal or not cci_upturn(d,i): return None
+    pattern=reversal[0]
     # Today's volume does not contribute to the threshold, avoiding self-reference.
     avg_prior_volume=d.volume.iloc[i-20:i].mean()
     volume_ok=bool(cur.volume>prev.volume or cur.volume>avg_prior_volume)
@@ -53,7 +81,8 @@ def classify(d,i):
         setup="B: SMA20_BOUNCE"
     else: return None
     return {"setup":setup,"pattern":pattern,"signal_date":str(cur.date),
-            "high":float(cur.high),"low":float(cur.low),"status":"READY",
+            "high":float(d.high.iloc[reversal[1]:i+1].max()),
+            "low":float(d.low.iloc[reversal[1]:i+1].min()),"status":"READY",
             "cci14":float(cur.cci),"volume_ratio":float(cur.volume/avg_prior_volume)}
 
 def transition(signal, day, date=None):

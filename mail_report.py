@@ -145,95 +145,34 @@ def compact_chart(image_bytes):
         return out.getvalue()
 
 def make_message(raw,results,session_date,run_url):
-    """Render the report *inside* the email. No ZIP or extraction required."""
-    ready=[r["symbol"] for r in results if r["analysis"]["status"]=="READY"]
-    triggered=[r["symbol"] for r in results if r["analysis"]["status"]=="TRIGGERED"]
+    """Minimal inline-email report: ticker and 1D candle/SMA20/CCI14 chart."""
+    ordered=[item for _,_,items in grouped_results(results) for item in items]
     msg=EmailMessage()
     msg["From"]=TO
     msg["To"]=TO
-    msg["Subject"]="METHOD 20 AI | דוח מסחר "+session_date.isoformat()
-    msg.set_content(
-        "METHOD 20 AI: "+session_date.isoformat()+"\n"
-        +"מניות שנותחו: "+str(len(results))+"\n"
-        +"READY: "+(", ".join(ready) if ready else "אין")+"\n"
-        +"TRIGGERED: "+(", ".join(triggered) if triggered else "אין")+"\n"
-        +"הדוח המלא, כולל הגרפים והניתוח, מופיע בגרסת HTML של הודעה זו.\n"
-        +"מקור: "+run_url+"\n"
-    )
-    parts=[
-        '<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8"></head>',
-        '<body style="margin:0;padding:18px;font-family:Arial,sans-serif;background:#f2f5f9;color:#162638">',
-        '<div style="max-width:1200px;margin:auto">',
-        '<h1 style="margin:0 0 8px">METHOD 20 AI</h1>',
-        '<p>דוח מסחר '+html.escape(session_date.isoformat())+' | '+str(len(results))+' מניות</p>',
-        '<div style="padding:14px;background:#e8eef6;border-radius:10px">',
-        '<b>READY:</b> '+html.escape(", ".join(ready) if ready else "אין"),
-        ' | <b>TRIGGERED:</b> '+html.escape(", ".join(triggered) if triggered else "אין"),
-        '</div>',
-        '<p style="font-size:12px">הסטאפים הם אותות מחקריים בלבד, לא הוראות מסחר. התרחישים מותנים ולא תחזיות ודאיות.</p>'
-    ]
+    msg["Subject"]="METHOD 20 | דוח מסחר "+session_date.isoformat()
+    msg.set_content("METHOD 20 | "+session_date.isoformat()
+                    +"\\nגרפים יומיים: נרות יפניים, SMA20, CCI14.")
+    parts=['<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8"></head>',
+           '<body style="margin:0;padding:16px;font-family:Arial,sans-serif;background:#f2f5f9">',
+           '<div style="max-width:1200px;margin:auto"><h1>METHOD 20</h1>']
     images=[]
-    groups=grouped_results(results)
-    ordered=[item for _,_,items in groups for item in items]
-    titles={key:title for key,title,_ in groups}
-    counts={key:len(items) for key,_,items in groups}
-    previous_group=None
     with zipfile.ZipFile(io.BytesIO(raw)) as z:
         for index,item in enumerate(ordered):
-            key=section_key(item)
-            if key!=previous_group:
-                parts.append('<h2 style="margin:28px 0 8px">'+html.escape(titles[key])
-                             +' ('+str(counts[key])+')</h2>')
-                previous_group=key
             sym=html.escape(item["symbol"])
-            a=item["analysis"]
-            levels=item.get("levels",{})
-            outlook=item.get("outlook",{})
-            bullish=item.get("bullish_patterns",[])
-            def prices(name):
-                entries=levels.get(name,[])
-                return ", ".join("$"+fmt2(v["low"])+"–$"+fmt2(v["high"]) if "low" in v and "high" in v else "$"+fmt2(v["price"]) for v in entries[:1]) if entries else "לא זוהתה"
-            def safe(value):
-                return html.escape(format_numbers_in_text(value))
-            parts.extend([
-                '<section style="background:white;margin:18px 0;padding:16px;border-radius:12px;border:1px solid #e1e6ed">',
-                '<h2 style="margin:0 0 8px">'+sym+' | '+safe(a.get("status"))+'</h2>',
-                '<p><b>סגירה:</b> $'+safe(a.get("close"))+' | <b>SMA20:</b> $'+safe(a.get("sma20"))
-                +' | <b>CCI14:</b> '+safe(a.get("cci14"))+' | <b>נפח:</b> '+safe(a.get("volume_ratio"))+'x</p>',
-                '<p><b>מגמת 5 ימים:</b> '+safe(a.get("change_5d_pct"))+'% | <b>21 ימים:</b> '+safe(a.get("change_21d_pct"))+'%</p>',
-                '<p><b>תמיכות:</b> '+safe(prices("support"))+' | <b>התנגדויות:</b> '+safe(prices("resistance"))+'</p>',
-                '<p><b>תחזית מותנית ליום הבא:</b> '+safe(outlook.get("bias"))+'</p>',
-                '<p>'+safe(outlook.get("reason"))+'</p>',
-                '<p><b>תרחיש שורי:</b> '+safe(outlook.get("bull_case"))+'</p>',
-                '<p><b>תרחיש דובי:</b> '+safe(outlook.get("bear_case"))+'</p>',
-                '<p><b>תבניות נרות שוריות בגרף:</b> '+str(len(bullish))+' | ללא סימוני נרות וטריגרים על הגרף.</p>',
-            ])
-            active=a.get("active") or a.get("last_event")
-            if active and active.get("status") not in ("READY","TRIGGERED"):
-                active=None
-            if active:
-                parts.append('<div style="background:#f5f7fa;padding:12px;border-radius:8px">'
-                             +'<h3>למה הסטאפ זוהה?</h3><p>'
-                             +safe(signal_explanation(active))+'</p>'
-                             +'<p><b>סטטוס:</b> '+safe(active.get("status"))
-                             +'; <b>תאריך איתות:</b> '+safe(active.get("signal_date"))
-                             +'</p><p><b>טריגר מעל:</b> $'+safe(active.get("high"))
-                             +'; <b>סטופ טכני מתחת:</b> $'+safe(active.get("low"))
-                             +'</p><small>רמות מחושבות מתבנית האיתות; אינן הוראת מסחר בפועל.</small></div>')
+            parts.append('<section style="background:white;padding:14px;margin:16px 0;border-radius:12px">'
+                         +'<h2>'+sym+'</h2>')
+            if "error" in item:
+                parts.append('<p>נתונים לא זמינים</p></section>')
+                continue
             chart_name="charts/"+item["symbol"]+".png"
             if chart_name not in z.namelist():
                 raise ValueError("Missing chart image: "+chart_name)
             cid="method20-chart-"+str(index)+"@local"
-            image_data=compact_chart(z.read(chart_name))
-            images.append((cid,image_data))
-            parts.append('<img alt="Daily '+sym+' chart" src="cid:'+cid+'" '
-                         'style="display:block;width:100%;max-width:1200px;height:auto;margin:12px 0"/>')
-            parts.extend([
-                '</section>'
-            ])
-    parts.extend(['<p style="font-size:12px">מקור הדוח: <a href="'
-                  +html.escape(run_url,quote=True)+'">GitHub Actions</a>. '
-                  'מידע למחקר בלבד.</p>','</div></body></html>'])
+            images.append((cid,compact_chart(z.read(chart_name))))
+            parts.append('<img alt="1D candles SMA20 CCI14" src="cid:'+cid+'" '
+                         +'style="display:block;width:100%;height:auto"/></section>')
+    parts.append('</div></body></html>')
     msg.add_alternative("".join(parts),subtype="html")
     htmlpart=msg.get_payload()[-1]
     for cid,content in images:

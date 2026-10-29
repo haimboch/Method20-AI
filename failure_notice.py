@@ -1,0 +1,1 @@
+"""Report delivery failure notice."""

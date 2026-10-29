@@ -7,13 +7,23 @@ from engine import visible_bullish_patterns, reversal_for_chart
 class ReportPresentationTests(unittest.TestCase):
     def test_two_candle_engulfing_is_recent_only(self):
         d=pd.DataFrame([{"date":str(i),"open":10.0,"high":11.0,
-            "low":9.5,"close":10.8} for i in range(20)])
+            "low":9.5,"close":10.8,"sma20":10.50} for i in range(20)])
         d.loc[18,["open","close"]]=[10.8,10.0]
         d.loc[19,["open","high","low","close"]]=[9.9,11.4,9.7,11.2]
         patterns=visible_bullish_patterns(d)
         self.assertEqual(patterns[-1]["pattern"],"BULLISH_ENGULFING")
         self.assertEqual((patterns[-1]["start"],patterns[-1]["end"]),(18,19))
         self.assertEqual(len(visible_bullish_patterns(d.iloc[:-10])),0)
+        d["sma20"]=8.00
+        self.assertEqual(visible_bullish_patterns(d),[])
+
+    def test_recent_doji_only_when_below_or_touching_sma20(self):
+        d=pd.DataFrame([{"date":str(i),"open":10,"close":10,
+                         "high":10.6,"low":9.5,"sma20":10.2}
+                        for i in range(12)])
+        self.assertTrue(any(x["pattern"]=="DOJI" for x in visible_bullish_patterns(d)))
+        d["sma20"]=8
+        self.assertEqual(visible_bullish_patterns(d),[])
 
     def test_signal_marker_uses_ready_and_finished_events(self):
         d=pd.DataFrame({"date":["2026-10-26","2026-10-27"]})

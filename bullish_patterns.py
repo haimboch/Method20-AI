@@ -35,3 +35,16 @@ def detect(d,last_n=10):
                 name="PIERCING_LINE"
             elif a[3]<a[0] and b[3]>b[0] and abs(a[2]-b[2])<=max(abs(a[2]),.01)*.003:
                 name="TWEEZER_BOTTOM"
+        if name:
+            begin=i-width+1
+            item={"pattern":name,"start":begin,"end":i,
+                  "start_date":str(d.iloc[begin].date) if "date" in d else str(begin),
+                  "end_date":str(d.iloc[i].date) if "date" in d else str(i),
+                  "low":float(d.low.iloc[begin:i+1].min()),
+                  "high":float(d.high.iloc[begin:i+1].max())}
+            if result and begin<=result[-1]["end"]:
+                if width>result[-1]["end"]-result[-1]["start"]+1:
+                    result[-1]=item
+            else:
+                result.append(item)
+    return result

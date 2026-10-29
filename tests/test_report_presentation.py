@@ -2,17 +2,26 @@ import unittest
 import pandas as pd
 from report_format import fmt2, fmt_signed, format_numbers_in_text
 from levels import structure
-from engine import visible_bullish_patterns
+from engine import visible_bullish_patterns, reversal_for_chart
 
 class ReportPresentationTests(unittest.TestCase):
-    def test_bullish_candles_highlighted_without_signal_confirmation(self):
-        d=pd.DataFrame([
-            {"open":10.0,"high":11.0,"low":9.5,"close":10.8},
-            {"open":10.8,"high":11.0,"low":9.5,"close":10.0},
-            {"open":9.9,"high":11.4,"low":9.7,"close":11.2},
-        ])
-        self.assertIn((2,"BULLISH_ENGULFING"),visible_bullish_patterns(d))
-        self.assertEqual(len(visible_bullish_patterns(d.tail(2))),1)
+    def test_two_candle_engulfing_is_recent_only(self):
+        d=pd.DataFrame([{"date":str(i),"open":10.0,"high":11.0,
+            "low":9.5,"close":10.8} for i in range(20)])
+        d.loc[18,["open","close"]]=[10.8,10.0]
+        d.loc[19,["open","high","low","close"]]=[9.9,11.4,9.7,11.2]
+        patterns=visible_bullish_patterns(d)
+        self.assertEqual(patterns[-1]["pattern"],"BULLISH_ENGULFING")
+        self.assertEqual((patterns[-1]["start"],patterns[-1]["end"]),(18,19))
+        self.assertEqual(len(visible_bullish_patterns(d.iloc[:-10])),0)
+
+    def test_signal_marker_uses_ready_and_finished_events(self):
+        d=pd.DataFrame({"date":["2026-10-26","2026-10-27"]})
+        signal={"signal_date":"2026-10-26","high":101.25,"low":98.0}
+        self.assertEqual(reversal_for_chart({"active":signal},d)[0],0)
+        self.assertEqual(reversal_for_chart({"last_event":signal},d)[0],0)
+        self.assertIsNone(reversal_for_chart({"active":{"signal_date":"2026-10-20"}},d))
+
     def test_numbers_are_two_decimals(self):
         self.assertEqual(fmt2(123.45678),"123.46")
         self.assertEqual(fmt_signed(-12.345),"-12.35")

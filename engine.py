@@ -223,7 +223,7 @@ def render(results):
         a=r["analysis"]
         active=a["active"]
         status=a["status"]
-        setup=active["setup"] if active else "אין סטאפ פעיל"
+        setup=(active or (a.get("last_event") if status=="TRIGGERED" else None) or {}).get("setup","אין סטאפ פעיל")
         old=a["last_event"]
         prior=(f'אירוע קודם: {html.escape(old["status"])} בתאריך {html.escape(old.get("event_date",""))}' if old else "אין אירוע קודם")
         checkrows=''.join('<tr><td>'+html.escape(str(k))+'</td><td>'+html.escape(format_numbers_in_text(v))+'</td></tr>' for k,v,_ in r.get('checklist',[]))

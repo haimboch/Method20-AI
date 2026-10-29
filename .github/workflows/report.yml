@@ -6,6 +6,9 @@ on:
     # Only the local 23:30–00:29 Israel window passes the guard.
     - cron: "40 20 * * 1-5"
     - cron: "40 21 * * 1-5"
+    # Backup EOD opportunities after local midnight if earlier cron was dropped.
+    - cron: "10 21 * * 1-5"
+    - cron: "10 22 * * 1-5"
 
 permissions:
   contents: read

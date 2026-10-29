@@ -206,7 +206,7 @@ def make_message(raw,results,session_date,run_url):
                 '<p>'+safe(outlook.get("reason"))+'</p>',
                 '<p><b>תרחיש שורי:</b> '+safe(outlook.get("bull_case"))+'</p>',
                 '<p><b>תרחיש דובי:</b> '+safe(outlook.get("bear_case"))+'</p>',
-                '<p><b>תבניות נרות שוריות בגרף:</b> '+str(len(bullish))+' | זהב: תבנית 2–3 נרות בעשרת האחרונים; כחול: נר איתות וטריגר.</p>',
+                '<p><b>תבניות נרות שוריות בגרף:</b> '+str(len(bullish))+' | ללא סימוני נרות וטריגרים על הגרף.</p>',
             ])
             active=a.get("active") or a.get("last_event")
             if active and active.get("status") not in ("READY","TRIGGERED"):

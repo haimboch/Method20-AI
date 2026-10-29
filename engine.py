@@ -110,6 +110,8 @@ def reversal_for_chart(analysis,view):
     if not analysis:
         return None
     signal=analysis.get("active") or analysis.get("last_event")
+    if signal and signal.get("status") not in ("READY","TRIGGERED"):
+        return None
     if not signal:
         return None
     dates={str(v):i for i,v in enumerate(view.date)}

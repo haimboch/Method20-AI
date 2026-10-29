@@ -203,7 +203,8 @@ def make_message(raw,results,session_date,run_url):
             if active:
                 parts.append('<p><b>נר איתות METHOD 20:</b> '+safe(active.get("setup"))
                              +'; תאריך: '+safe(active.get("signal_date"))
-                             +'; טריגר כניסה מעל: 
+                             +'; טריגר מעל: $'+safe(active.get("high"))
+                             +'; סטופ טכני מתחת: $'+safe(active.get("low"))+'</p>')
             chart_name="charts/"+item["symbol"]+".png"
             if chart_name not in z.namelist():
                 raise ValueError("Missing chart image: "+chart_name)

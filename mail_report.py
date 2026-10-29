@@ -195,13 +195,158 @@ def make_message(raw,results,session_date,run_url):
                 '<p>'+safe(outlook.get("reason"))+'</p>',
                 '<p><b>תרחיש שורי:</b> '+safe(outlook.get("bull_case"))+'</p>',
                 '<p><b>תרחיש דובי:</b> '+safe(outlook.get("bear_case"))+'</p>',
-                '<p><b>תבניות נרות שוריות בגרף:</b> '+str(len(bullish))+' | מסגרת זהובה מציינת תבנית, לא כניסה מאושרת.</p>',
+                '<p><b>תבניות נרות שוריות בגרף:</b> '+str(len(bullish))+' | זהב: תבנית 2–3 נרות בעשרת האחרונים; כחול: נר איתות וטריגר.</p>',
             ])
-            active=a.get("active")
+            active=a.get("active") or a.get("last_event")
             if active:
-                parts.append('<p><b>סטאפ פעיל:</b> '+safe(active.get("setup"))
-                             +'; HIGH: $'+safe(active.get("high"))
-                             +'; LOW: $'+safe(active.get("low"))+'</p>')
+                parts.append('<p><b>נר איתות METHOD 20:</b> '+safe(active.get("setup"))
+                             +'; תאריך: '+safe(active.get("signal_date"))
+                             +'; טריגר כניסה מעל: 
+            chart_name="charts/"+item["symbol"]+".png"
+            if chart_name not in z.namelist():
+                raise ValueError("Missing chart image: "+chart_name)
+            cid="method20-chart-"+str(index)+"@local"
+            image_data=compact_chart(z.read(chart_name))
+            images.append((cid,image_data))
+            parts.append('<img alt="Daily '+sym+' chart" src="cid:'+cid+'" '
+                         'style="display:block;width:100%;max-width:1200px;height:auto;margin:12px 0"/>')
+            parts.extend([
+                '</section>'
+            ])
+    parts.extend(['<p style="font-size:12px">מקור הדוח: <a href="'
+                  +html.escape(run_url,quote=True)+'">GitHub Actions</a>. '
+                  'מידע למחקר בלבד.</p>','</div></body></html>'])
+    msg.add_alternative("".join(parts),subtype="html")
+    htmlpart=msg.get_payload()[-1]
+    for cid,content in images:
+        htmlpart.add_related(content,maintype="image",subtype="jpeg",
+                             cid="<"+cid+">",disposition="inline")
+    if len(msg.as_bytes())>18*1024*1024:
+        raise ValueError("Inline email exceeds 18 MB safety limit")
+    return msg
+
+def main():
+    now=datetime.now(ZoneInfo("UTC"))
+    event=os.getenv("GITHUB_EVENT_NAME","workflow_dispatch")
+    eligible,session_date,reason=delivery_decision(event,now)
+    print("Delivery gate:",reason,"session:",session_date,flush=True)
+    if not eligible:
+        print("DELIVERY_SKIPPED event="+event+" reason="+reason,flush=True)
+        if event=="workflow_dispatch":
+            raise RuntimeError("Manual email delivery blocked: "+reason)
+        return
+    token=os.getenv("GITHUB_TOKEN","").strip()
+    password=os.getenv("GMAIL_APP_PASSWORD","").replace(" ","").strip()
+    repo=os.getenv("GITHUB_REPOSITORY","haimboch/Method20-AI")
+    if not token:
+        raise RuntimeError("Missing GITHUB_TOKEN")
+    if not password:
+        raise RuntimeError("Missing GMAIL_APP_PASSWORD GitHub Actions secret")
+    session=requests.Session()
+    session.headers.update({"Authorization":"Bearer "+token,
+                            "Accept":"application/vnd.github+json",
+                            "X-GitHub-Api-Version":"2022-11-28"})
+    if already_sent(session,repo,session_date):
+        print("EMAIL_ALREADY_SENT session="+session_date.isoformat(),flush=True)
+        return
+    try:
+        raw,results,url=find_artifact(session,repo,session_date,now)
+        print("EOD_EXISTING_ARTIFACT_FOUND session="+session_date.isoformat(),flush=True)
+    except LookupError:
+        print("EOD_ARTIFACT_MISSING initiating verified recovery",flush=True)
+        raw,results,url=regenerate_missing_report(session_date)
+    msg=make_message(raw,results,session_date,url)
+    with smtplib.SMTP_SSL("smtp.gmail.com",465,timeout=45) as smtp:
+        smtp.login(TO,password)
+        smtp.send_message(msg)
+    from pathlib import Path
+    Path("delivery_marker.txt").write_text(
+        "SMTP send accepted for NYSE session "+session_date.isoformat()+"\n",
+        encoding="utf-8")
+    dest=os.getenv("GITHUB_OUTPUT")
+    if dest:
+        with open(dest,"a",encoding="utf-8") as output:
+            output.write("sent=true\n")
+            output.write("session_date="+session_date.isoformat()+"\n")
+    print("METHOD20_EMAIL_SENT session="+session_date.isoformat()
+          +" recipient="+TO,flush=True)
+
+if __name__=="__main__":
+    main()
++safe(active.get("high"))
+                             +'; ביטול לפני כניסה מתחת: 
+            chart_name="charts/"+item["symbol"]+".png"
+            if chart_name not in z.namelist():
+                raise ValueError("Missing chart image: "+chart_name)
+            cid="method20-chart-"+str(index)+"@local"
+            image_data=compact_chart(z.read(chart_name))
+            images.append((cid,image_data))
+            parts.append('<img alt="Daily '+sym+' chart" src="cid:'+cid+'" '
+                         'style="display:block;width:100%;max-width:1200px;height:auto;margin:12px 0"/>')
+            parts.extend([
+                '</section>'
+            ])
+    parts.extend(['<p style="font-size:12px">מקור הדוח: <a href="'
+                  +html.escape(run_url,quote=True)+'">GitHub Actions</a>. '
+                  'מידע למחקר בלבד.</p>','</div></body></html>'])
+    msg.add_alternative("".join(parts),subtype="html")
+    htmlpart=msg.get_payload()[-1]
+    for cid,content in images:
+        htmlpart.add_related(content,maintype="image",subtype="jpeg",
+                             cid="<"+cid+">",disposition="inline")
+    if len(msg.as_bytes())>18*1024*1024:
+        raise ValueError("Inline email exceeds 18 MB safety limit")
+    return msg
+
+def main():
+    now=datetime.now(ZoneInfo("UTC"))
+    event=os.getenv("GITHUB_EVENT_NAME","workflow_dispatch")
+    eligible,session_date,reason=delivery_decision(event,now)
+    print("Delivery gate:",reason,"session:",session_date,flush=True)
+    if not eligible:
+        print("DELIVERY_SKIPPED event="+event+" reason="+reason,flush=True)
+        if event=="workflow_dispatch":
+            raise RuntimeError("Manual email delivery blocked: "+reason)
+        return
+    token=os.getenv("GITHUB_TOKEN","").strip()
+    password=os.getenv("GMAIL_APP_PASSWORD","").replace(" ","").strip()
+    repo=os.getenv("GITHUB_REPOSITORY","haimboch/Method20-AI")
+    if not token:
+        raise RuntimeError("Missing GITHUB_TOKEN")
+    if not password:
+        raise RuntimeError("Missing GMAIL_APP_PASSWORD GitHub Actions secret")
+    session=requests.Session()
+    session.headers.update({"Authorization":"Bearer "+token,
+                            "Accept":"application/vnd.github+json",
+                            "X-GitHub-Api-Version":"2022-11-28"})
+    if already_sent(session,repo,session_date):
+        print("EMAIL_ALREADY_SENT session="+session_date.isoformat(),flush=True)
+        return
+    try:
+        raw,results,url=find_artifact(session,repo,session_date,now)
+        print("EOD_EXISTING_ARTIFACT_FOUND session="+session_date.isoformat(),flush=True)
+    except LookupError:
+        print("EOD_ARTIFACT_MISSING initiating verified recovery",flush=True)
+        raw,results,url=regenerate_missing_report(session_date)
+    msg=make_message(raw,results,session_date,url)
+    with smtplib.SMTP_SSL("smtp.gmail.com",465,timeout=45) as smtp:
+        smtp.login(TO,password)
+        smtp.send_message(msg)
+    from pathlib import Path
+    Path("delivery_marker.txt").write_text(
+        "SMTP send accepted for NYSE session "+session_date.isoformat()+"\n",
+        encoding="utf-8")
+    dest=os.getenv("GITHUB_OUTPUT")
+    if dest:
+        with open(dest,"a",encoding="utf-8") as output:
+            output.write("sent=true\n")
+            output.write("session_date="+session_date.isoformat()+"\n")
+    print("METHOD20_EMAIL_SENT session="+session_date.isoformat()
+          +" recipient="+TO,flush=True)
+
+if __name__=="__main__":
+    main()
++safe(active.get("low"))+'</p>')
             chart_name="charts/"+item["symbol"]+".png"
             if chart_name not in z.namelist():
                 raise ValueError("Missing chart image: "+chart_name)

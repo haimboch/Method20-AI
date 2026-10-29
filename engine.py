@@ -140,9 +140,19 @@ def chart(d,symbol,path,a,levels=None):
     if bullish:
         ax.scatter([],[],marker="s",facecolors="none",edgecolors="#c18a00",
                    label="Bullish pattern (last 10)")
-    if a and str(a["signal_date"])>=str(d.iloc[0].date):
-        ax.axhline(a["high"],ls="--",color="#12805c",lw=1,label="reversal HIGH")
-        ax.axhline(a["low"],ls="--",color="#c44747",lw=1,label="reversal LOW")
+    reversal=reversal_for_chart(a,d)
+    if reversal:
+        index,signal=reversal
+        price=float(signal["high"])
+        bar=d.iloc[index]
+        ax.add_patch(Rectangle((index-.58,float(bar.low)-.01),
+                               1.16,max(float(bar.high-bar.low)+.02,.03),
+                               fill=False,edgecolor="#1b65cc",linewidth=2.6,zorder=9))
+        ax.axhline(price,color="#1b65cc",ls="--",lw=1.65,
+                   label="Entry trigger > $"+fmt2(price))
+        ax.annotate("SIGNAL",(index,float(bar.high)),xytext=(0,17),
+                    textcoords="offset points",color="#1b65cc",
+                    fontsize=9,ha="center",fontweight="bold")
     if levels:
         for z in levels["support"]:
             ax.axhspan(z["low"],z["high"],color="#16815c",alpha=0.20,label="Support zone")
@@ -227,7 +237,7 @@ def main():
             a=analyze(d)
             levels=structure(d,lookback=95)
             outlook=scenario(d,levels)
-            chart(d,s,OUT/"charts"/f"{s}.png",a["active"],levels)
+            chart(d,s,OUT/"charts"/f"{s}.png",a,levels)
             checklist=build_checklist(d,a)
             patterns=[{"date":str(d.tail(95).iloc[i].date),"pattern":p}
                       for i,p in visible_bullish_patterns(d)]

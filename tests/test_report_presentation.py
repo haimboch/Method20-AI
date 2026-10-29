@@ -7,7 +7,8 @@ from engine import visible_bullish_patterns, reversal_for_chart
 class ReportPresentationTests(unittest.TestCase):
     def test_two_candle_engulfing_is_recent_only(self):
         d=pd.DataFrame([{"date":str(i),"open":10.0,"high":11.0,
-            "low":9.5,"close":10.8,"sma20":10.50} for i in range(20)])
+            "low":9.5,"close":10.8,"sma20":8.00} for i in range(20)])
+        d.loc[18:19,"sma20"]=11.0
         d.loc[18,["open","close"]]=[10.8,10.0]
         d.loc[19,["open","high","low","close"]]=[9.9,11.4,9.7,11.2]
         patterns=visible_bullish_patterns(d)

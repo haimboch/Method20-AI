@@ -3,6 +3,7 @@ import pandas as pd
 from report_format import fmt2, fmt_signed, format_numbers_in_text
 from levels import structure
 from engine import visible_bullish_patterns, reversal_for_chart
+from report_sections import grouped_results, signal_explanation, signal_for_display
 
 class ReportPresentationTests(unittest.TestCase):
     def test_two_candle_engulfing_is_recent_only(self):
@@ -34,6 +35,25 @@ class ReportPresentationTests(unittest.TestCase):
         self.assertIsNone(reversal_for_chart({"last_event":dict(signal,status="BROKEN")},d))
         self.assertIsNone(reversal_for_chart({"last_event":dict(signal,status="INVALIDATED")},d))
         self.assertIsNone(reversal_for_chart({"active":{"signal_date":"2026-10-20"}},d))
+
+    def test_report_groups_ready_triggered_then_other(self):
+        signal={"status":"READY","setup":"B: SMA20_BOUNCE","pattern":"HAMMER",
+                "signal_date":"2026-10-28","high":110.0,"low":101.0}
+        rows=[
+            {"symbol":"NONE","analysis":{"status":"NO ACTIVE SETUP"}},
+            {"symbol":"TRIG","analysis":{"status":"TRIGGERED",
+                 "last_event":dict(signal,status="TRIGGERED")}},
+            {"symbol":"READY","analysis":{"status":"READY","active":signal}},
+            {"symbol":"BROKEN","analysis":{"status":"BROKEN",
+                 "last_event":dict(signal,status="BROKEN")}},
+        ]
+        groups=grouped_results(rows)
+        self.assertEqual([k for k,_,_ in groups],["READY","TRIGGERED","OTHER"])
+        self.assertEqual([[r["symbol"] for r in group] for _,_,group in groups],
+                         [["READY"],["TRIG"],["NONE","BROKEN"]])
+        self.assertEqual(signal_for_display(rows[2])["high"],110.0)
+        self.assertIsNone(signal_for_display(rows[3]))
+        self.assertIn("SMA20",signal_explanation(signal))
 
     def test_numbers_are_two_decimals(self):
         self.assertEqual(fmt2(123.45678),"123.46")

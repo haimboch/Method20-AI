@@ -101,13 +101,20 @@ from checklist import build_checklist
 from levels import structure, scenario
 from report_format import fmt2, fmt_signed, format_numbers_in_text
 
-BULLISH_LABELS={"BULLISH_ENGULFING":"Engulfing", "HAMMER":"Hammer", "BULLISH_REJECTION":"Rejection"}
+from bullish_patterns import detect as detect_bullish_patterns, PATTERNS
 
 def visible_bullish_patterns(d):
-    """Patterns among visible candles only; this is NOT METHOD 20 entry confirmation."""
-    view=d.tail(95).reset_index(drop=True)
-    return [(i,p) for i in range(len(view))
-            if (p:=candle_pattern(view,i)) in BULLISH_LABELS]
+    return detect_bullish_patterns(d.tail(95).reset_index(drop=True),last_n=10)
+
+def reversal_for_chart(analysis,view):
+    if not analysis:
+        return None
+    signal=analysis.get("active") or analysis.get("last_event")
+    if not signal:
+        return None
+    dates={str(v):i for i,v in enumerate(view.date)}
+    index=dates.get(str(signal.get("signal_date")))
+    return (index,signal) if index is not None else None
 
 
 def chart(d,symbol,path,a,levels=None):

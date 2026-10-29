@@ -17,13 +17,22 @@ class StateTests(unittest.TestCase):
         self.assertEqual(transition(self.s,self.day("2026-10-02",100,94.99))["status"],"INVALIDATED")
     def test_both_crossed_is_ambiguous(self):
         self.assertEqual(transition(self.s,self.day("2026-10-02",102,94))["status"],"AMBIGUOUS")
+    def test_trigger_remains_valid_until_low_broken(self):
+        triggered=transition(self.s,self.day("2026-10-02",101.1,96))
+        self.assertEqual(triggered["status"],"TRIGGERED")
+        self.assertEqual(transition(triggered,self.day("2026-10-03",104,95))["status"],"TRIGGERED")
+        self.assertEqual(transition(triggered,self.day("2026-10-04",103,94.99))["status"],"BROKEN")
+    def test_broken_is_terminal(self):
+        triggered=transition(self.s,self.day("2026-10-02",102,96))
+        broken=transition(triggered,self.day("2026-10-03",105,94))
+        self.assertEqual(transition(broken,self.day("2026-10-04",108,98))["status"],"BROKEN")
     def test_equal_level_no_break(self):
         self.assertEqual(transition(self.s,self.day("2026-10-02",101,95))["status"],"READY")
     def test_no_time_expiry(self):
         self.assertEqual(transition(self.s,self.day("2027-12-15"))["status"],"READY")
     def test_finished_event_not_retriggered(self):
         done=transition(self.s,self.day("2026-10-02",102))
-        self.assertEqual(transition(done,self.day("2026-10-03",100,90))["status"],"TRIGGERED")
+        self.assertEqual(transition(done,self.day("2026-10-03",100,90))["status"],"BROKEN")
 
 class SignalTests(unittest.TestCase):
     def data(self,oversold=False,volume=250):

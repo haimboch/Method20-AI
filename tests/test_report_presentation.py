@@ -17,9 +17,11 @@ class ReportPresentationTests(unittest.TestCase):
 
     def test_signal_marker_uses_ready_and_finished_events(self):
         d=pd.DataFrame({"date":["2026-10-26","2026-10-27"]})
-        signal={"signal_date":"2026-10-26","high":101.25,"low":98.0}
+        signal={"signal_date":"2026-10-26","high":101.25,"low":98.0,"status":"READY"}
         self.assertEqual(reversal_for_chart({"active":signal},d)[0],0)
-        self.assertEqual(reversal_for_chart({"last_event":signal},d)[0],0)
+        self.assertEqual(reversal_for_chart({"last_event":dict(signal,status="TRIGGERED")},d)[0],0)
+        self.assertIsNone(reversal_for_chart({"last_event":dict(signal,status="BROKEN")},d))
+        self.assertIsNone(reversal_for_chart({"last_event":dict(signal,status="INVALIDATED")},d))
         self.assertIsNone(reversal_for_chart({"active":{"signal_date":"2026-10-20"}},d))
 
     def test_numbers_are_two_decimals(self):

@@ -151,33 +151,6 @@ def chart(d,symbol,path,a,levels=None):
         ax.add_patch(Rectangle((i-.33,min(x.open,x.close)),.66,max(abs(x.close-x.open),.001),color=color))
         vax.bar(i,x.volume,color=color,width=.75)
     ax.plot(np.arange(len(d)),d.sma20,color="#e5a522",lw=2.2,label="SMA20")
-    bullish=visible_bullish_patterns(d)
-    for pattern in bullish:
-        start,end=pattern["start"],pattern["end"]
-        span=max(pattern["high"]-pattern["low"],float(d.close.iloc[-1])*.008,.02)
-        ax.add_patch(Rectangle((start-.54,pattern["low"]-span*.08),
-                               end-start+1.08,span*1.16,
-                               fill=False,edgecolor="#c18a00",linewidth=2.2,
-                               zorder=7))
-        ax.annotate(PATTERN_LABELS[pattern["pattern"]],
-                    ((start+end)/2,pattern["high"]+span*.20),
-                    fontsize=8,color="#9d6f00",ha="center",zorder=8)
-    if bullish:
-        ax.scatter([],[],marker="s",facecolors="none",edgecolors="#c18a00",
-                   label="Reversal near/below SMA20 (last 10)")
-    reversal=reversal_for_chart(a,d)
-    if reversal:
-        index,signal=reversal
-        price=float(signal["high"])
-        bar=d.iloc[index]
-        ax.add_patch(Rectangle((index-.58,float(bar.low)-.01),
-                               1.16,max(float(bar.high-bar.low)+.02,.03),
-                               fill=False,edgecolor="#1b65cc",linewidth=2.6,zorder=9))
-        ax.axhline(price,color="#1b65cc",ls="--",lw=1.65,
-                   label="Entry trigger > $"+fmt2(price))
-        ax.annotate("SIGNAL",(index,float(bar.high)),xytext=(0,17),
-                    textcoords="offset points",color="#1b65cc",
-                    fontsize=9,ha="center",fontweight="bold")
     if levels:
         for z in levels["support"]:
             ax.axhspan(z["low"],z["high"],color="#16815c",alpha=0.20,label="Support zone")
@@ -252,7 +225,7 @@ def render(results):
         bull=html.escape(format_numbers_in_text(outlook.get("bull_case","")))
         bear=html.escape(format_numbers_in_text(outlook.get("bear_case","")))
 
-        cards.append(f'<section><h2>{sym} <small>{html.escape(status)}</small></h2><p>תאריך נר אחרון: {html.escape(a["symbol_date"])}</p><p>סגירה: ${a["close"]:.2f} | SMA20: ${a["sma20"]:.2f} | CCI14: {fmt2(a["cci14"])} | Volume / Avg20: {a["volume_ratio"]:.2f}x</p><p>שינוי 5 ימים: {a["change_5d_pct"]:+.2f}% | שינוי 21 ימים: {a["change_21d_pct"]:+.2f}%</p><p>סטאפ: {html.escape(setup)}. {prior}</p>{signal_box}<div class="panel"><h3>תמיכה והתנגדות</h3><p>תמיכות: {support_text}</p><p>התנגדויות: {resistance_text}</p><h3>תרחיש ליום הבא: {bias_text}</h3><p>{reasons}</p><p>תרחיש שורי: {bull}</p><p>תרחיש דובי: {bear}</p><small>תרחישים מותנים, לא תחזית הסתברותית מאומתת.</small></div><p><b>תבניות/נרות היפוך בקרבת SMA20 או מתחתיו (10 אחרונים):</b> {len(patterns)} (זהב: תבנית, כחול: נר איתות ומחיר טריגר; תבנית לבדה אינה אישור כניסה)</p><div class="panel"><h3>צ׳קליסט METHOD 20</h3><table>{checkrows}</table></div><img class="chart" src="charts/{sym}.png" alt="Daily chart for {sym}" loading="lazy"/></section>')
+        cards.append(f'<section><h2>{sym} <small>{html.escape(status)}</small></h2><p>תאריך נר אחרון: {html.escape(a["symbol_date"])}</p><p>סגירה: ${a["close"]:.2f} | SMA20: ${a["sma20"]:.2f} | CCI14: {fmt2(a["cci14"])} | Volume / Avg20: {a["volume_ratio"]:.2f}x</p><p>שינוי 5 ימים: {a["change_5d_pct"]:+.2f}% | שינוי 21 ימים: {a["change_21d_pct"]:+.2f}%</p><p>סטאפ: {html.escape(setup)}. {prior}</p>{signal_box}<div class="panel"><h3>תמיכה והתנגדות</h3><p>תמיכות: {support_text}</p><p>התנגדויות: {resistance_text}</p><h3>תרחיש ליום הבא: {bias_text}</h3><p>{reasons}</p><p>תרחיש שורי: {bull}</p><p>תרחיש דובי: {bear}</p><small>תרחישים מותנים, לא תחזית הסתברותית מאומתת.</small></div><p><b>תבניות/נרות היפוך בקרבת SMA20 או מתחתיו (10 אחרונים):</b> {len(patterns)} (ללא סימונים מיוחדים על הגרף)</p><div class="panel"><h3>צ׳קליסט METHOD 20</h3><table>{checkrows}</table></div><img class="chart" src="charts/{sym}.png" alt="Daily chart for {sym}" loading="lazy"/></section>')
     document='''<!doctype html><html lang="he" dir="rtl"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>METHOD 20</title><style>body{font-family:Arial,sans-serif;background:#f3f5f9;color:#172331;margin:0;padding:20px}main{max-width:1350px;margin:auto}section{background:white;padding:20px;margin:18px 0;border-radius:16px;box-shadow:0 1px 7px #0001}img{width:100%;max-width:100%;height:auto;display:block;margin:12px auto}small{font-size:14px;color:#666}.panel{background:#f5f7fa;padding:12px;border-radius:10px;margin:12px 0}table{width:100%;border-collapse:collapse}td{padding:8px;border-bottom:1px solid #ddd}td:first-child{font-weight:bold}.err{color:#aa3333}p{line-height:1.65}</style><main><h1>METHOD 20 AI | דוח פיילוט</h1><p>מידע למחקר בלבד. ללא ביצוע עסקאות. סטאפים מזוהים בחוקים ניסיוניים. כל הניתוחים מחושבים על פי נתוני מסחר באמצעות Python, ללא סקירת תמונה באמצעות OpenAI.</p>'''+''.join(cards)+'</main></html>'
     (OUT/"report.html").write_text(document,encoding="utf-8")
 

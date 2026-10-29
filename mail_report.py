@@ -212,10 +212,14 @@ def make_message(raw,results,session_date,run_url):
             if active and active.get("status") not in ("READY","TRIGGERED"):
                 active=None
             if active:
-                parts.append('<p><b>נר איתות METHOD 20:</b> '+safe(active.get("setup"))
-                             +'; תאריך: '+safe(active.get("signal_date"))
-                             +'; טריגר מעל: $'+safe(active.get("high"))
-                             +'; סטופ טכני מתחת: $'+safe(active.get("low"))+'</p>')
+                parts.append('<div style="background:#f5f7fa;padding:12px;border-radius:8px">'
+                             +'<h3>למה הסטאפ זוהה?</h3><p>'
+                             +safe(signal_explanation(active))+'</p>'
+                             +'<p><b>סטטוס:</b> '+safe(active.get("status"))
+                             +'; <b>תאריך איתות:</b> '+safe(active.get("signal_date"))
+                             +'</p><p><b>טריגר מעל:</b> $'+safe(active.get("high"))
+                             +'; <b>סטופ טכני מתחת:</b> $'+safe(active.get("low"))
+                             +'</p><small>רמות מחושבות מתבנית האיתות; אינן הוראת מסחר בפועל.</small></div>')
             chart_name="charts/"+item["symbol"]+".png"
             if chart_name not in z.namelist():
                 raise ValueError("Missing chart image: "+chart_name)

@@ -13,6 +13,7 @@ import pandas_market_calendars as mcal
 import requests
 from PIL import Image
 from report_format import fmt2, format_numbers_in_text
+from report_sections import grouped_results, section_key, signal_for_display, signal_explanation
 
 TO="Haimboch@gmail.com"
 API="https://api.github.com"
@@ -172,8 +173,18 @@ def make_message(raw,results,session_date,run_url):
         '<p style="font-size:12px">הסטאפים הם אותות מחקריים בלבד, לא הוראות מסחר. התרחישים מותנים ולא תחזיות ודאיות.</p>'
     ]
     images=[]
+    groups=grouped_results(results)
+    ordered=[item for _,_,items in groups for item in items]
+    titles={key:title for key,title,_ in groups}
+    counts={key:len(items) for key,_,items in groups}
+    previous_group=None
     with zipfile.ZipFile(io.BytesIO(raw)) as z:
-        for index,item in enumerate(results):
+        for index,item in enumerate(ordered):
+            key=section_key(item)
+            if key!=previous_group:
+                parts.append('<h2 style="margin:28px 0 8px">'+html.escape(titles[key])
+                             +' ('+str(counts[key])+')</h2>')
+                previous_group=key
             sym=html.escape(item["symbol"])
             a=item["analysis"]
             levels=item.get("levels",{})

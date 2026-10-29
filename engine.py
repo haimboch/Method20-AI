@@ -231,13 +231,18 @@ def render(results):
         outlook=r.get("outlook",{})
         patterns=r.get("bullish_patterns",[])
         signal=signal_for_display(r)
+        signal_box=""
         if signal:
             why=html.escape(signal_explanation(signal))
             phase="ממתין לפריצה" if status=="READY" else "הטריגר נפרץ; הסטאפ עדיין לא נשבר"
+            entry=fmt2(signal["high"])
+            stop=fmt2(signal["low"])
             signal_box=('<div class="panel"><h3>פירוט סטאפ METHOD 20</h3><p>'
                         +why+'</p><p><b>סטטוס:</b> '+phase
                         +' | <b>תאריך איתות:</b> '+html.escape(str(signal["signal_date"]))
-                        +'</p><p><b>טריגר כניסה:</b> פריצה מעל 
+                        +'</p><p><b>טריגר מעל:</b> '+entry
+                        +' | <b>סטופ טכני מתחת:</b> '+stop
+                        +'</p><small>רמות מחושבות, לא הוראות מסחר בפועל.</small></div>')
         def fmtlevels(values):
             return ", ".join("$"+fmt2(v["low"])+"–$"+fmt2(v["high"]) for v in values) if values else "אין אזור מאומת בחלון הסריקה"
         support_text=html.escape(fmtlevels(lv.get("support",[])))

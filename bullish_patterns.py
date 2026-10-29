@@ -14,3 +14,15 @@ def detect(d,last_n=10):
         b=bar(i)
         name=None
         width=2
+        if i-2>=window:
+            z=bar(i-2)
+            if z[3]<z[0] and z[4]/z[5]>=.45 and a[4]<z[4]*.55 and b[3]>b[0] and b[3]>(z[0]+z[3])/2:
+                name="MORNING_STAR"
+            elif z[3]>z[0] and a[3]>a[0] and b[3]>b[0] and z[3]<a[3]<b[3] and z[0]<a[0]<z[3] and a[0]<b[0]<a[3] and min(z[4]/z[5],a[4]/a[5],b[4]/b[5])>=.4:
+                name="THREE_WHITE_SOLDIERS"
+            elif z[3]<z[0] and a[3]>a[0] and z[3]<=a[0]<a[3]<=z[0] and b[3]>z[0]:
+                name="THREE_INSIDE_UP"
+            elif z[3]<z[0] and a[3]>a[0] and a[0]<=z[3] and a[3]>=z[0] and b[3]>a[3] and b[3]>b[0]:
+                name="THREE_OUTSIDE_UP"
+            if name:
+                width=3

@@ -127,18 +127,19 @@ def chart(d,symbol,path,a,levels=None):
         vax.bar(i,x.volume,color=color,width=.75)
     ax.plot(np.arange(len(d)),d.sma20,color="#e5a522",lw=2.2,label="SMA20")
     bullish=visible_bullish_patterns(d)
-    for idx,pattern in bullish:
-        bar=d.iloc[idx]
-        span=max(float(bar.high-bar.low),float(d.close.iloc[-1])*0.008,0.02)
-        ax.add_patch(Rectangle((idx-0.55,float(bar.low)-span*.10),
-                               1.10,float(bar.high-bar.low)+span*.20,
-                               fill=False,edgecolor="#c18a00",linewidth=2,
+    for pattern in bullish:
+        start,end=pattern["start"],pattern["end"]
+        span=max(pattern["high"]-pattern["low"],float(d.close.iloc[-1])*.008,.02)
+        ax.add_patch(Rectangle((start-.54,pattern["low"]-span*.08),
+                               end-start+1.08,span*1.16,
+                               fill=False,edgecolor="#c18a00",linewidth=2.2,
                                zorder=7))
-        ax.scatter([idx],[float(bar.high)+span*.27],
-                   marker="v",s=38,color="#c18a00",zorder=8)
+        ax.annotate(PATTERNS[pattern["pattern"]],
+                    ((start+end)/2,pattern["high"]+span*.20),
+                    fontsize=8,color="#9d6f00",ha="center",zorder=8)
     if bullish:
-        ax.scatter([],[],marker="v",s=45,color="#c18a00",
-                   label="Bullish candle (not entry)")
+        ax.scatter([],[],marker="s",facecolors="none",edgecolors="#c18a00",
+                   label="Bullish pattern (last 10)")
     if a and str(a["signal_date"])>=str(d.iloc[0].date):
         ax.axhline(a["high"],ls="--",color="#12805c",lw=1,label="reversal HIGH")
         ax.axhline(a["low"],ls="--",color="#c44747",lw=1,label="reversal LOW")

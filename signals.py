@@ -58,8 +58,18 @@ def classify(d,i):
 
 def transition(signal, day, date=None):
     """Only a subsequent session may cross a reversal boundary."""
-    if signal is None or signal.get("status")!="READY": return signal
+    if signal is None: return None
+    state=signal.get("status")
+    if state not in ("READY","TRIGGERED"): return signal
     if str(date if date is not None else day.date)<=str(signal["signal_date"]):
+        return signal
+    if state=="TRIGGERED":
+        if float(day.low)<float(signal["low"]):
+            updated=dict(signal)
+            updated["status"]="BROKEN"
+            updated["event_date"]=str(date if date is not None else day.date)
+            updated["broken_date"]=updated["event_date"]
+            return updated
         return signal
     high_cross=bool(day.high>signal["high"])
     low_cross=bool(day.low<signal["low"])
@@ -77,6 +87,9 @@ def analyze(d):
     # Warm-up: enough history for CCI, SMA20 and weekly trend.
     for i in range(21,len(d)):
         day=d.iloc[i]
+        if last_event and last_event.get("status")=="TRIGGERED":
+            last_event=transition(last_event,day)
+            continue
         if active:
             updated=transition(active,day)
             if updated["status"]!="READY":
@@ -89,7 +102,8 @@ def analyze(d):
         if signal: active=signal
     x=d.iloc[-1]
     if active: status="READY"
-    elif last_event and last_event.get("event_date")==str(x.date):
+    elif last_event and (last_event.get("status")=="TRIGGERED"
+                         or last_event.get("event_date")==str(x.date)):
         status=last_event["status"]
     else: status="NO ACTIVE SETUP"
     def num(v): return float(v) if pd.notna(v) and math.isfinite(float(v)) else None

@@ -218,14 +218,8 @@ def main():
                 raise ValueError("Stale latest daily candle: expected "+expected+
                                  ", got "+str(d.iloc[-1].date))
             a=analyze(d)
-            levels=structure(d,lookback=95)
-            outlook=scenario(d,levels)
-            chart(d,s,OUT/"charts"/f"{s}.png",a,levels)
-            checklist=build_checklist(d,a)
-            patterns=visible_bullish_patterns(d)
-            results.append({"symbol":s,"analysis":a,"checklist":checklist,
-                            "levels":levels,"outlook":outlook,
-                            "bullish_patterns":patterns})
+            chart(d,s,OUT/"charts"/f"{s}.png",a)
+            results.append({"symbol":s,"analysis":a})
             print(f"{s}: {a['symbol_date']} {a['active']['status'] if a['active'] else 'NO ACTIVE SETUP'}")
         except Exception as e:
             results.append({"symbol":s,"error":str(e)})

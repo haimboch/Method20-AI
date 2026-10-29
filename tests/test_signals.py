@@ -1,7 +1,7 @@
 import unittest
 from types import SimpleNamespace
 import pandas as pd
-from signals import transition, classify, candle_pattern, cci_upturn
+from signals import transition, classify, candle_pattern, cci_upturn, sma20_context, visual_reversal
 
 class StateTests(unittest.TestCase):
     def setUp(self):
@@ -61,6 +61,22 @@ class SignalTests(unittest.TestCase):
         d=self.data()
         d.loc[29,["open","close","high","low"]]=[100,100,101,99]
         self.assertIsNone(candle_pattern(d,29))
+    def test_doji_near_sma20_is_valid_reversal_candidate(self):
+        d=self.data(False)
+        d.loc[29,["open","close","high","low"]]=[100,100,101,99]
+        self.assertEqual(visual_reversal(d,29)[0],"DOJI")
+        self.assertIsNotNone(classify(d,29))
+    def test_no_setup_far_above_sma20(self):
+        d=self.data(False)
+        d.loc[29,["open","close","high","low","sma20"]]=[120,122,123,119,100]
+        self.assertFalse(sma20_context(d,29))
+        self.assertIsNone(visual_reversal(d,29))
+        self.assertIsNone(classify(d,29))
+    def test_sma20_touch_includes_bounce(self):
+        d=self.data(False)
+        d.loc[29,["open","close","high","low","sma20"]]=[101,102,103,100.2,100]
+        self.assertTrue(sma20_context(d,29))
+
     def test_hammer(self):
         d=self.data()
         d.loc[29,["open","close","high","low"]]=[100,100.4,100.5,98.4]

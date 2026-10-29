@@ -169,57 +169,27 @@ def chart(d,symbol,path,a,levels=None):
     plt.close(fig)
 
 def render(results):
+    """Minimal visual report; preserve priority ordering without commentary."""
+    ordered=[item for _,_,items in grouped_results(results) for item in items]
     cards=[]
-    groups=grouped_results(results)
-    ordered=[r for _,_,items in groups for r in items]
-    title_by_key={key:title for key,title,_ in groups}
-    count_by_key={key:len(items) for key,_,items in groups}
-    previous_group=None
     for r in ordered:
-        group=section_key(r)
-        if group!=previous_group:
-            cards.append('<h2 style="margin:28px 0 6px">'+html.escape(title_by_key[group])
-                         +' ('+str(count_by_key[group])+')</h2>')
-            previous_group=group
         sym=html.escape(r["symbol"])
         if "error" in r:
-            cards.append(f'<section><h2>{sym}</h2><p class="err">נתונים לא זמינים: {html.escape(r["error"])}</p></section>')
+            cards.append('<section><h2>'+sym+'</h2><p>נתונים לא זמינים</p></section>')
             continue
-        a=r["analysis"]
-        active=a["active"]
-        status=a["status"]
-        setup=(active or (a.get("last_event") if status=="TRIGGERED" else None) or {}).get("setup","אין סטאפ פעיל")
-        old=a["last_event"]
-        prior=(f'אירוע קודם: {html.escape(old["status"])} בתאריך {html.escape(old.get("event_date",""))}' if old else "אין אירוע קודם")
-        checkrows=''.join('<tr><td>'+html.escape(str(k))+'</td><td>'+html.escape(format_numbers_in_text(v))+'</td></tr>' for k,v,_ in r.get('checklist',[]))
-        lv=r.get("levels",{})
-        outlook=r.get("outlook",{})
-        patterns=r.get("bullish_patterns",[])
-        signal=signal_for_display(r)
-        signal_box=""
-        if signal:
-            why=html.escape(signal_explanation(signal))
-            phase="ממתין לפריצה" if status=="READY" else "הטריגר נפרץ; הסטאפ עדיין לא נשבר"
-            entry=fmt2(signal["high"])
-            stop=fmt2(signal["low"])
-            signal_box=('<div class="panel"><h3>פירוט סטאפ METHOD 20</h3><p>'
-                        +why+'</p><p><b>סטטוס:</b> '+phase
-                        +' | <b>תאריך איתות:</b> '+html.escape(str(signal["signal_date"]))
-                        +'</p><p><b>טריגר מעל:</b> '+entry
-                        +' | <b>סטופ טכני מתחת:</b> '+stop
-                        +'</p><small>רמות מחושבות, לא הוראות מסחר בפועל.</small></div>')
-        def fmtlevels(values):
-            return ", ".join("$"+fmt2(v["low"])+"–$"+fmt2(v["high"]) for v in values) if values else "אין אזור מאומת בחלון הסריקה"
-        support_text=html.escape(fmtlevels(lv.get("support",[])))
-        resistance_text=html.escape(fmtlevels(lv.get("resistance",[])))
-        bias_text=html.escape(outlook.get("bias","לא זמין"))
-        reasons=html.escape(format_numbers_in_text(outlook.get("reason","")))
-        bull=html.escape(format_numbers_in_text(outlook.get("bull_case","")))
-        bear=html.escape(format_numbers_in_text(outlook.get("bear_case","")))
-
-        cards.append(f'<section><h2>{sym} <small>{html.escape(status)}</small></h2><p>תאריך נר אחרון: {html.escape(a["symbol_date"])}</p><p>סגירה: ${a["close"]:.2f} | SMA20: ${a["sma20"]:.2f} | CCI14: {fmt2(a["cci14"])} | Volume / Avg20: {a["volume_ratio"]:.2f}x</p><p>שינוי 5 ימים: {a["change_5d_pct"]:+.2f}% | שינוי 21 ימים: {a["change_21d_pct"]:+.2f}%</p><p>סטאפ: {html.escape(setup)}. {prior}</p>{signal_box}<div class="panel"><h3>תמיכה והתנגדות</h3><p>תמיכות: {support_text}</p><p>התנגדויות: {resistance_text}</p><h3>תרחיש ליום הבא: {bias_text}</h3><p>{reasons}</p><p>תרחיש שורי: {bull}</p><p>תרחיש דובי: {bear}</p><small>תרחישים מותנים, לא תחזית הסתברותית מאומתת.</small></div><p><b>תבניות/נרות היפוך בקרבת SMA20 או מתחתיו (10 אחרונים):</b> {len(patterns)} (ללא סימונים מיוחדים על הגרף)</p><div class="panel"><h3>צ׳קליסט METHOD 20</h3><table>{checkrows}</table></div><img class="chart" src="charts/{sym}.png" alt="Daily chart for {sym}" loading="lazy"/></section>')
-    document='''<!doctype html><html lang="he" dir="rtl"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>METHOD 20</title><style>body{font-family:Arial,sans-serif;background:#f3f5f9;color:#172331;margin:0;padding:20px}main{max-width:1350px;margin:auto}section{background:white;padding:20px;margin:18px 0;border-radius:16px;box-shadow:0 1px 7px #0001}img{width:100%;max-width:100%;height:auto;display:block;margin:12px auto}small{font-size:14px;color:#666}.panel{background:#f5f7fa;padding:12px;border-radius:10px;margin:12px 0}table{width:100%;border-collapse:collapse}td{padding:8px;border-bottom:1px solid #ddd}td:first-child{font-weight:bold}.err{color:#aa3333}p{line-height:1.65}</style><main><h1>METHOD 20 AI | דוח פיילוט</h1><p>מידע למחקר בלבד. ללא ביצוע עסקאות. סטאפים מזוהים בחוקים ניסיוניים. כל הניתוחים מחושבים על פי נתוני מסחר באמצעות Python, ללא סקירת תמונה באמצעות OpenAI.</p>'''+''.join(cards)+'</main></html>'
-    (OUT/"report.html").write_text(document,encoding="utf-8")
+        cards.append('<section><h2>'+sym+'</h2>'
+                     +'<img class="chart" src="charts/'+sym+'.png" '
+                     +'alt="Daily candlesticks SMA20 CCI14 for '+sym+'"/></section>')
+    page=('<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8">'
+          +'<meta name="viewport" content="width=device-width,initial-scale=1">'
+          +'<title>METHOD 20</title><style>'
+          +'body{font-family:Arial,sans-serif;background:#f3f5f9;color:#172331;margin:0;padding:16px}'
+          +'main{max-width:1350px;margin:auto}'
+          +'section{background:#fff;padding:16px;margin:16px 0;border-radius:14px}'
+          +'img{width:100%;height:auto;display:block}'
+          +'</style></head><body><main><h1>METHOD 20</h1>'
+          +''.join(cards)+'</main></body></html>')
+    (OUT/"report.html").write_text(page,encoding="utf-8")
 
 def main():
     OUT.mkdir(exist_ok=True)

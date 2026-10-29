@@ -1,8 +1,11 @@
 import unittest
+import tempfile
+from pathlib import Path
+from unittest.mock import patch
 import pandas as pd
 from report_format import fmt2, fmt_signed, format_numbers_in_text
 from levels import structure
-from engine import visible_bullish_patterns, reversal_for_chart
+from engine import visible_bullish_patterns, reversal_for_chart, render, chart
 from report_sections import grouped_results, signal_explanation, signal_for_display
 
 class ReportPresentationTests(unittest.TestCase):
@@ -54,6 +57,30 @@ class ReportPresentationTests(unittest.TestCase):
         self.assertEqual(signal_for_display(rows[2])["high"],110.0)
         self.assertIsNone(signal_for_display(rows[3]))
         self.assertIn("SMA20",signal_explanation(signal))
+
+    def test_minimal_html_has_only_ticker_and_chart(self):
+        row={"symbol":"XYZ","analysis":{"status":"NO ACTIVE SETUP"}}
+        with tempfile.TemporaryDirectory() as root:
+            with patch("engine.OUT",Path(root)):
+                render([row])
+                page=(Path(root)/"report.html").read_text(encoding="utf-8")
+        self.assertIn("<h2>XYZ</h2>",page)
+        self.assertIn("charts/XYZ.png",page)
+        for excluded in ("צ׳קליסט","תמיכה והתנגדות","טריגר מעל",
+                         "תבניות/נרות","תחזית מותנית"):
+            self.assertNotIn(excluded,page)
+
+    def test_chart_contains_only_price_and_cci_panels(self):
+        rows=[{"date":"2026-10-"+str(i+1).zfill(2),
+               "open":100+i,"high":102+i,"low":99+i,"close":101+i,
+               "volume":1000,"sma20":100+i*.7,"cci":float(i)}
+              for i in range(12)]
+        d=pd.DataFrame(rows)
+        with tempfile.TemporaryDirectory() as root:
+            dst=Path(root)/"XYZ.png"
+            chart(d,"XYZ",dst,None)
+            self.assertTrue(dst.is_file())
+            self.assertGreater(dst.stat().st_size,1000)
 
     def test_numbers_are_two_decimals(self):
         self.assertEqual(fmt2(123.45678),"123.46")

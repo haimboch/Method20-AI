@@ -7,6 +7,12 @@ from engine import chart,render
 from method20_zones import update_book,chosen_zone,risk_reward
 
 class ReportTests(unittest.TestCase):
+    def test_daily_utc_timestamp_is_not_shifted_back_to_new_york_yesterday(self):
+        from engine import daily_session_dates
+        stamps=pd.Series([pd.Timestamp("2026-10-29T00:00:00Z").timestamp()*1000])
+        dates=daily_session_dates(stamps)
+        self.assertEqual(str(dates.iloc[0]),"2026-10-29")
+
     def test_chart_has_candles_volume_cci_and_overlay(self):
         d=pd.DataFrame([{"date":f"2026-10-{i+1:02d}","open":100+i*.2,
                "high":101+i*.2,"low":99+i*.2,"close":100.5+i*.2,

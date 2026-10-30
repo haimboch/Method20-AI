@@ -24,6 +24,7 @@ class ReportTests(unittest.TestCase):
         d.loc[30,"close"]=108
         d.loc[31,"close"]=106
         d.loc[32,"close"]=104
+        d.loc[33,"close"]=109
         d.loc[34,["open","close","high","low"]]=[103,104,105,98]
         found=recent_reversal_observation(d)
         self.assertIsNotNone(found)

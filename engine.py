@@ -7,6 +7,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 from matplotlib.ticker import FormatStrFormatter
+from stage1_patterns import annotations
 
 ROOT=Path(__file__).resolve().parent
 OUT=ROOT/"output"
@@ -116,6 +117,21 @@ def chart(d,symbol,path,a=None,zone=None):
         vax.bar(i,x.volume,color=color,width=.75)
     ax.plot(np.arange(95),view.sma20,color="#e5a522",lw=2,
             label="SMA20")
+    # Stage 1: observational marks only. No trend or trade-state inference.
+    marks=annotations(view)
+    for mark in marks:
+        first,last=mark["start"],mark["end"]
+        bottom=float(view.low.iloc[first:last+1].min())
+        top=float(view.high.iloc[first:last+1].max())
+        span=max(top-bottom,1e-6)
+        ax.add_patch(Rectangle((first-.47,bottom-.04*span),
+                               last-first+.94,span*1.08,fill=False,
+                               edgecolor="black",lw=2.0,zorder=9))
+        ax.annotate(mark["pattern"],((first+last)/2,top),
+                    xytext=(0,12),textcoords="offset points",
+                    ha="center",va="bottom",fontsize=8,fontweight="bold",
+                    color="#171717",zorder=10)
+    ax.margins(y=.16)
     ax.yaxis.set_major_formatter(FormatStrFormatter("%.2f"))
     ax.set_title(symbol+" | 1D | "+str(view.iloc[-1].date),fontsize=16)
     ax.grid(alpha=.17)
@@ -181,8 +197,9 @@ def main():
                 raise ValueError("Stale latest daily candle: expected "+expected+
                                  ", got "+str(d.iloc[-1].date))
             chart(d,symbol,OUT/"charts"/f"{symbol}.png")
+            marks=annotations(d)
             results.append({"symbol":symbol,"session_date":str(d.iloc[-1].date),
-                            "candles":95})
+                            "candles":95,"annotations":marks})
             print(f"{symbol}: {d.iloc[-1].date} 95 bars",flush=True)
         except Exception as e:
             print(f"{symbol}: ERROR {type(e).__name__}: {e}",flush=True)
@@ -193,7 +210,7 @@ def main():
     errors=[r["symbol"] for r in results if "error" in r]
     session_date=expected or next((r["session_date"] for r in results
                                    if "session_date" in r),"")
-    metadata={"report_type":"CHART_ONLY","candles_per_chart":95,
+    metadata={"report_type":"CHART_WITH_STAGE1_MARKS","candles_per_chart":95,
               "session_date":session_date,"symbols":symbols,
               "expected_ticker_count":len(symbols),
               "analyzed_ticker_count":len(symbols)-len(errors),

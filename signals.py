@@ -96,11 +96,12 @@ def transition(signal,day,date=None):
 
 def analyze(d,closed_signal_dates=()):
     if len(d)<26:raise ValueError("Not enough daily bars for METHOD20")
-    closed_dates=set(map(str,closed_signal_dates))
+    release_dates=closed_signal_dates if isinstance(closed_signal_dates,dict) else {str(x):"0000-01-01" for x in closed_signal_dates}
     active=None;last_event=None
     for i in range(25,len(d)):
         day=d.iloc[i];day_date=str(day.date)
-        if active and active["signal_date"] in closed_dates:
+        if (active and active["signal_date"] in release_dates
+                and day_date>=str(release_dates[active["signal_date"]])):
             last_event=dict(active,status="SKIPPED_OR_CLOSED",event_date=day_date)
             active=None
             continue

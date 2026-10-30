@@ -11,8 +11,20 @@ def detect_at(d,i):
         return dict(o=o,h=h,l=l,c=c,r=r,body=body,
                     green=c>o,red=c<o,top=h-max(o,c),bottom=min(o,c)-l)
     b=bar(i)
+    def previous_decline(start):
+        # The pattern must follow an actual selloff, not occur at a random
+        # point in a rally or during a flat consolidation.
+        if start<6:return False
+        prev=d.iloc[start-1]
+        last3=d.close.iloc[start-3:start]
+        earlier=d.close.iloc[start-6:start-3]
+        return bool(
+            float(last3.mean()) < float(earlier.mean())
+            and float(prev.close) < float(d.close.iloc[start-6])
+        )
     def found(name,n):
         start=i-n+1
+        if not previous_decline(start):return None
         return {"pattern":name,"start":start,"end":i,
                 "signal_date":str(d.iloc[i].date),
                 "high":float(d.high.iloc[start:i+1].max()),

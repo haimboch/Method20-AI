@@ -48,7 +48,7 @@ jobs:
           git config user.name "method20-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add state/market_zones.json
-          git diff --cached --quiet || (git commit -m "Update locked METHOD20 market zones" && git push)
+          git diff --cached --quiet || (git commit -m "Update locked METHOD20 market zones" && git push origin HEAD:${{ github.ref_name }})
       - name: Upload report
         if: steps.guard.outputs.should_run == 'true'
         uses: actions/upload-artifact@v4

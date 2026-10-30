@@ -193,7 +193,8 @@ def main():
     errors=[r["symbol"] for r in results if "error" in r]
     session_date=expected or next((r["session_date"] for r in results
                                    if "session_date" in r),"")
-    metadata={"session_date":session_date,"symbols":symbols,
+    metadata={"report_type":"CHART_ONLY","candles_per_chart":95,
+              "session_date":session_date,"symbols":symbols,
               "expected_ticker_count":len(symbols),
               "analyzed_ticker_count":len(symbols)-len(errors),
               "failed_symbols":errors,"complete":not errors}

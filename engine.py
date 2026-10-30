@@ -11,6 +11,10 @@ from matplotlib.ticker import FormatStrFormatter
 ROOT=Path(__file__).resolve().parent
 OUT=ROOT/"output"
 
+def daily_session_dates(epoch_millis):
+    """Massive daily aggregates use a UTC date label, not a NY local time."""
+    return pd.to_datetime(epoch_millis,unit="ms",utc=True).dt.date
+
 def fetch(symbol):
     """Fetch split-adjusted DAILY OHLCV from Massive. No key is printed or saved."""
     from datetime import datetime, timedelta, time as clock_time
@@ -71,7 +75,7 @@ def fetch(symbol):
     })
     # Massive daily aggregate timestamps identify the UTC calendar trading date.
     # Converting midnight UTC to NY time shifts the session label to yesterday.
-    d["date"] = pd.to_datetime(d["date"], unit="ms", utc=True).dt.date
+    d["date"] = daily_session_dates(d["date"])
     if ny.weekday() < 5 and ny.time() < clock_time(16, 15):
         d = d[d.date < ny.date()]
     d = d[["date", "open", "high", "low", "close", "volume"]]

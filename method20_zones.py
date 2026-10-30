@@ -119,19 +119,38 @@ def update_book(d,book,display_kind=None,reference=None):
         book[kind]=zone
     if display_kind:
         zone=book.get(display_kind)
-        if not zone or zone.get("status") not in ("ACTIVE","HIDDEN"):
-            choices=candidates(d,display_kind,reference)
-            if choices:
-                zone=choices[0]
+        eligible=lambda z: (
+            z is not None and z.get("status") in ("ACTIVE","HIDDEN")
+            and reference is not None
+            and (float(z["high"])<float(reference) if display_kind=="support"
+                 else float(z["low"])>float(reference)))
+        if not eligible(zone):
+            if zone and zone.get("status") in ("ACTIVE","HIDDEN"):
+                # Historical levels are retained, but never displayed on the
+                # wrong side of the current price/trigger.
+                zone["status"]="HIDDEN"
+                book.setdefault("archived",[]).append(dict(zone))
+            zone=None
+            for old in reversed(book.get("archived",[])):
+                if old.get("kind")==display_kind and eligible(old):
+                    zone=dict(old)
+                    break
+            if zone is None:
+                choices=candidates(d,display_kind,reference)
+                zone=choices[0] if choices else None
+            if zone is not None:
                 book[display_kind]=zone
-            else:zone=None
-        if zone and zone["status"] in ("ACTIVE","HIDDEN"):
+        if zone is not None and eligible(zone):
             zone["status"]="ACTIVE"
     return book
 
 def chosen_zone(book,kind):
     zone=(book or {}).get(kind)
     return zone if zone and zone.get("status")=="ACTIVE" else None
+
+def zone_is_relevant(zone,kind,reference):
+    if not zone or reference is None:return False
+    return (zone["high"]<reference if kind=="support" else zone["low"]>reference)
 
 def risk_reward(signal,zone):
     if not signal or not zone:return None

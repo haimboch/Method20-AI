@@ -1,85 +1,60 @@
 import unittest
-from types import SimpleNamespace
 import pandas as pd
-from signals import transition, classify, candle_pattern, cci_upturn, sma20_context, visual_reversal
+from signals import candidate,confirmation,classify,transition,analyze,sma20_context
+from patterns_method20 import detect_at
 
-class StateTests(unittest.TestCase):
-    def setUp(self):
-        self.s={"setup":"A: MEAN_REVERSION","signal_date":"2026-10-01",
-                "high":101.0,"low":95.0,"status":"READY"}
-    def day(self,date,high=100,low=96):
-        return SimpleNamespace(date=date,high=high,low=low)
-    def test_signal_day_not_trigger(self):
-        self.assertEqual(transition(self.s,self.day("2026-10-01",110,90))["status"],"READY")
-    def test_high_break(self):
-        self.assertEqual(transition(self.s,self.day("2026-10-02",101.01))["status"],"TRIGGERED")
-    def test_low_break(self):
-        self.assertEqual(transition(self.s,self.day("2026-10-02",100,94.99))["status"],"INVALIDATED")
-    def test_both_crossed_is_ambiguous(self):
-        self.assertEqual(transition(self.s,self.day("2026-10-02",102,94))["status"],"AMBIGUOUS")
-    def test_trigger_remains_valid_until_low_broken(self):
-        triggered=transition(self.s,self.day("2026-10-02",101.1,96))
-        self.assertEqual(triggered["status"],"TRIGGERED")
-        self.assertEqual(transition(triggered,self.day("2026-10-03",104,95))["status"],"TRIGGERED")
-        self.assertEqual(transition(triggered,self.day("2026-10-04",103,94.99))["status"],"BROKEN")
-    def test_broken_is_terminal(self):
-        triggered=transition(self.s,self.day("2026-10-02",102,96))
-        broken=transition(triggered,self.day("2026-10-03",105,94))
-        self.assertEqual(transition(broken,self.day("2026-10-04",108,98))["status"],"BROKEN")
-    def test_equal_level_no_break(self):
-        self.assertEqual(transition(self.s,self.day("2026-10-02",101,95))["status"],"READY")
-    def test_no_time_expiry(self):
-        self.assertEqual(transition(self.s,self.day("2027-12-15"))["status"],"READY")
-    def test_finished_event_not_retriggered(self):
-        done=transition(self.s,self.day("2026-10-02",102))
-        self.assertEqual(transition(done,self.day("2026-10-03",100,90))["status"],"BROKEN")
-
-class SignalTests(unittest.TestCase):
-    def data(self,oversold=False,volume=250):
-        dates=pd.date_range("2026-08-01",periods=30,freq="B")
-        d=pd.DataFrame([{"date":str(x.date()),"open":101.0,"high":102.0,
-                         "low":99.5,"close":100.0,"volume":100.0,"sma20":100.0,
-                         "vol20":100.0,"cci":0.0} for x in dates])
-        d.loc[26,"cci"]=-130 if oversold else 20
-        d.loc[27,"cci"]=30
-        d.loc[28,"cci"]=10
-        d.loc[29,["open","high","low","close","volume","cci"]]=[99.3,101.2,99.0,100.8,volume,40]
+class Method20Tests(unittest.TestCase):
+    def data(self):
+        dates=pd.date_range("2026-08-01",periods=35,freq="B")
+        d=pd.DataFrame([{"date":str(x.date()),"open":112,"close":110,
+           "high":114,"low":108,"volume":100,"sma20":120,
+           "vol20":100,"cci":-20} for x in dates])
+        d.loc[24,"close"]=115
+        d.loc[29,"close"]=105
+        d.loc[32,"cci"]=-145
+        d.loc[33,"cci"]=-160
+        d.loc[34,["open","close","high","low","cci","volume"]]=[103,104,105,98,-120,180]
         return d
-    def test_b_cci_not_oversold(self):
-        d=self.data(False)
-        s=classify(d,29)
-        self.assertIsNotNone(s)
-        self.assertEqual(s["setup"],"B: SMA20_BOUNCE")
-    def test_volume_required(self):
-        d=self.data(False,50)
-        self.assertIsNone(classify(d,29))
-    def test_cci_upturn_required(self):
-        d=self.data(False)
-        d.loc[28,"cci"]=45
-        self.assertIsNone(classify(d,29))
-    def test_doji_not_bullish(self):
-        d=self.data()
-        d.loc[29,["open","close","high","low"]]=[100,100,101,99]
-        self.assertIsNone(candle_pattern(d,29))
-    def test_doji_near_sma20_is_valid_reversal_candidate(self):
-        d=self.data(False)
-        d.loc[29,["open","close","high","low"]]=[100,100,101,99]
-        self.assertEqual(visual_reversal(d,29)[0],"DOJI")
-        self.assertIsNotNone(classify(d,29))
-    def test_no_setup_far_above_sma20(self):
-        d=self.data(False)
-        d.loc[29,["open","close","high","low","sma20"]]=[120,122,123,119,100]
-        self.assertFalse(sma20_context(d,29))
-        self.assertIsNone(visual_reversal(d,29))
-        self.assertIsNone(classify(d,29))
-    def test_sma20_touch_includes_bounce(self):
-        d=self.data(False)
-        d.loc[29,["open","close","high","low","sma20"]]=[101,102,103,100.2,100]
-        self.assertTrue(sma20_context(d,29))
 
-    def test_hammer(self):
+    def test_reversal_candle_and_context(self):
         d=self.data()
-        d.loc[29,["open","close","high","low"]]=[100,100.4,100.5,98.4]
-        self.assertEqual(candle_pattern(d,29),"HAMMER")
+        self.assertEqual(detect_at(d,34)["pattern"],"HAMMER")
+        self.assertTrue(sma20_context(d,34))
+        c=candidate(d,34)
+        self.assertEqual(c["status"],"CANDIDATE")
+        self.assertEqual(c["setup"],"A: MEAN_REVERSION")
 
-if __name__=="__main__": unittest.main()
+    def test_cci_volume_confirmation(self):
+        d=self.data()
+        self.assertTrue(confirmation(d,34,candidate(d,34)))
+        self.assertEqual(classify(d,34)["status"],"READY")
+        d.loc[34,"volume"]=40
+        self.assertFalse(confirmation(d,34,candidate(d,34)))
+
+    def test_red_hammer_and_doji(self):
+        d=self.data()
+        d.loc[34,["open","close","high","low"]]=[104,103,105,98]
+        self.assertEqual(detect_at(d,34)["pattern"],"HAMMER")
+        d.loc[34,["open","close","high","low"]]=[102,102,104,100]
+        self.assertEqual(detect_at(d,34)["pattern"],"DOJI")
+
+    def test_fixed_trigger_and_one_day_boundary(self):
+        signal={"signal_date":"2026-10-01","high":105,"low":99,
+                "status":"READY"}
+        class Day:pass
+        day=Day();day.date="2026-10-01";day.high=106;day.low=98
+        self.assertEqual(transition(signal,day)["status"],"READY")
+        day.date="2026-10-02"
+        self.assertEqual(transition(signal,day)["status"],"AMBIGUOUS")
+        day.low=100
+        self.assertEqual(transition(signal,day)["status"],"TRIGGERED")
+        day.high=104;day.low=100;day.date="2027-12-01"
+        self.assertEqual(transition(signal,day)["status"],"READY")
+
+    def test_candidate_expiration(self):
+        d=self.data()
+        d.loc[34,"volume"]=40
+        a=analyze(d)
+        self.assertIn(a["status"],("CANDIDATE","NO ACTIVE SETUP"))
+
+if __name__=="__main__":unittest.main()

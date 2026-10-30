@@ -61,6 +61,39 @@ class Method20Tests(unittest.TestCase):
         day.high=104;day.low=100;day.date="2027-12-01"
         self.assertEqual(transition(signal,day)["status"],"READY")
 
+    def test_triggered_technical_low_break_becomes_broken(self):
+        signal={"signal_date":"2026-10-01","high":105,"low":99,
+                "status":"TRIGGERED","event_date":"2026-10-02"}
+        class Day:pass
+        day=Day();day.date="2026-10-03";day.high=103;day.low=98
+        outcome=transition(signal,day)
+        self.assertEqual(outcome["status"],"BROKEN")
+        self.assertEqual(outcome["technical_stop_touched"],"2026-10-03")
+
+    def test_unconfirmed_breakout_and_ambiguous_daily_bar(self):
+        signal={"signal_date":"2026-10-01","high":105,"low":99,
+                "status":"CANDIDATE"}
+        class Day:pass
+        day=Day();day.date="2026-10-02";day.high=106;day.low=100
+        self.assertEqual(transition(signal,day)["status"],"UNCONFIRMED_BREAKOUT")
+        day.low=98
+        self.assertEqual(transition(signal,day)["status"],"AMBIGUOUS")
+
+    def test_cci_turns_after_pattern_during_confirmation_window(self):
+        d=self.data()
+        initial=candidate(d,34)
+        self.assertIsNotNone(initial)
+        d2=pd.concat([d,pd.DataFrame([{
+            "date":"2026-10-15","open":104,"high":105,
+            "low":100,"close":104,"volume":250,"vol20":100,
+            "sma20":120,"cci":-110}])],ignore_index=True)
+        self.assertTrue(confirmation(d2,35,initial))
+        d2.loc[35,"high"]=106
+        # The same confirming bar cannot be presumed to have triggered
+        # before confirmation: daily OHLC has no sequence information.
+        self.assertEqual(transition(initial,d2.iloc[35])["status"],
+                         "UNCONFIRMED_BREAKOUT")
+
     def test_candidate_expiration(self):
         d=self.data()
         d.loc[34,"volume"]=40

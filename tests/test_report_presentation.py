@@ -21,6 +21,9 @@ class ReportTests(unittest.TestCase):
            "vol20":100,"cci":-20} for x in dates])
         d.loc[24,"close"]=115
         d.loc[29,"close"]=105
+        d.loc[30,"close"]=108
+        d.loc[31,"close"]=106
+        d.loc[32,"close"]=104
         d.loc[34,["open","close","high","low"]]=[103,104,105,98]
         found=recent_reversal_observation(d)
         self.assertIsNotNone(found)

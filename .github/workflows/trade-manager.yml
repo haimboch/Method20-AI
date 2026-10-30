@@ -1,0 +1,69 @@
+name: METHOD 20 Manual Trade Manager
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "Trade action"
+        required: true
+        type: choice
+        options: [BUY, SELL_PARTIAL, UPDATE_STOP, CLOSE, SKIP_TRADE]
+      symbol:
+        description: "Ticker symbol (e.g. NVDA)"
+        required: true
+        type: string
+      quantity:
+        description: "Share quantity for BUY or SELL_PARTIAL"
+        required: false
+        type: string
+      price:
+        description: "Actual execution price for BUY/SELL/CLOSE"
+        required: false
+        type: string
+      stop:
+        description: "Initial BUY stop or new UPDATE_STOP level"
+        required: false
+        type: string
+      date:
+        description: "Transaction date YYYY-MM-DD (blank = today UTC)"
+        required: false
+        type: string
+      signal_date:
+        description: "METHOD20 signal date YYYY-MM-DD for BUY/SKIP"
+        required: false
+        type: string
+      fee:
+        description: "Optional fee in USD; informational"
+        required: false
+        type: string
+permissions:
+  contents: write
+concurrency:
+  group: method20-state-write
+  cancel-in-progress: false
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Validate and record manual action
+        env:
+          TRADE_ACTION: ${{ inputs.action }}
+          TRADE_SYMBOL: ${{ inputs.symbol }}
+          TRADE_QUANTITY: ${{ inputs.quantity }}
+          TRADE_PRICE: ${{ inputs.price }}
+          TRADE_STOP: ${{ inputs.stop }}
+          TRADE_DATE: ${{ inputs.date }}
+          TRADE_SIGNAL_DATE: ${{ inputs.signal_date }}
+          TRADE_FEE: ${{ inputs.fee }}
+        run: python trade_manager.py
+      - name: Persist verified ledger to repository
+        run: |
+          git config user.name "method20-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/trade_events.json
+          git diff --cached --quiet || (git commit -m "Record manual METHOD20 trade action" && git push)

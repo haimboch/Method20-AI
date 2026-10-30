@@ -69,9 +69,9 @@ def fetch(symbol):
         "t": "date", "o": "open", "h": "high", "l": "low",
         "c": "close", "v": "volume"
     })
-    d["date"] = pd.to_datetime(d["date"], unit="ms", utc=True).dt.tz_convert(
-        "America/New_York"
-    ).dt.date
+    # Massive daily aggregate timestamps identify the UTC calendar trading date.
+    # Converting midnight UTC to NY time shifts the session label to yesterday.
+    d["date"] = pd.to_datetime(d["date"], unit="ms", utc=True).dt.date
     if ny.weekday() < 5 and ny.time() < clock_time(16, 15):
         d = d[d.date < ny.date()]
     d = d[["date", "open", "high", "low", "close", "volume"]]

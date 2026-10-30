@@ -1,5 +1,9 @@
 {
-  "ACHR": {},
+  "ACHR": {
+    "support": null,
+    "resistance": null,
+    "archived": []
+  },
   "AEHR": {
     "resistance": {
       "kind": "resistance",
@@ -15,7 +19,9 @@
         "2026-09-29",
         "2026-10-02"
       ]
-    }
+    },
+    "support": null,
+    "archived": []
   },
   "ALAB": {
     "resistance": {
@@ -31,7 +37,9 @@
         "2026-09-22",
         "2026-09-25"
       ]
-    }
+    },
+    "support": null,
+    "archived": []
   },
   "APLD": {
     "resistance": {
@@ -47,9 +55,15 @@
         "2026-09-08",
         "2026-09-22"
       ]
-    }
+    },
+    "support": null,
+    "archived": []
   },
-  "APP": {},
+  "APP": {
+    "support": null,
+    "resistance": null,
+    "archived": []
+  },
   "ASTS": {
     "resistance": {
       "kind": "resistance",
@@ -66,7 +80,9 @@
         "2026-09-29",
         "2026-10-06"
       ]
-    }
+    },
+    "support": null,
+    "archived": []
   },
   "BE": {
     "resistance": {
@@ -76,12 +92,14 @@
       "score": 52.53,
       "touches": 2,
       "created_at": "2026-10-28",
-      "status": "HIDDEN",
+      "status": "ACTIVE",
       "history": [
         "2026-09-08",
         "2026-09-17"
       ]
-    }
+    },
+    "support": null,
+    "archived": []
   },
   "BMNR": {
     "support": {
@@ -91,12 +109,27 @@
       "score": 57.96,
       "touches": 2,
       "created_at": "2026-10-29",
-      "status": "ACTIVE",
+      "status": "HIDDEN",
       "history": [
         "2026-10-15",
         "2026-10-27"
       ]
-    }
+    },
+    "resistance": {
+      "kind": "resistance",
+      "low": 26.4863,
+      "high": 27.0837,
+      "score": 57.41,
+      "touches": 3,
+      "created_at": "2026-10-29",
+      "status": "ACTIVE",
+      "history": [
+        "2026-08-27",
+        "2026-09-03",
+        "2026-09-11"
+      ]
+    },
+    "archived": []
   },
   "CBRS": {
     "resistance": {
@@ -111,7 +144,9 @@
         "2026-08-12",
         "2026-08-17"
       ]
-    }
+    },
+    "support": null,
+    "archived": []
   },
   "CRDO": {
     "resistance": {
@@ -126,9 +161,15 @@
         "2026-06-25",
         "2026-08-17"
       ]
-    }
+    },
+    "support": null,
+    "archived": []
   },
-  "EOSE": {},
+  "EOSE": {
+    "support": null,
+    "resistance": null,
+    "archived": []
+  },
   "GEV": {
     "resistance": {
       "kind": "resistance",
@@ -143,7 +184,9 @@
         "2026-09-09",
         "2026-09-17"
       ]
-    }
+    },
+    "support": null,
+    "archived": []
   },
   "HOOD": {
     "resistance": {
@@ -159,7 +202,9 @@
         "2026-09-23",
         "2026-09-30"
       ]
-    }
+    },
+    "support": null,
+    "archived": []
   },
   "INTC": {
     "resistance": {
@@ -174,7 +219,9 @@
         "2026-09-21",
         "2026-10-02"
       ]
-    }
+    },
+    "support": null,
+    "archived": []
   },
   "IREN": {
     "resistance": {
@@ -190,7 +237,9 @@
         "2026-09-08",
         "2026-09-23"
       ]
-    }
+    },
+    "support": null,
+    "archived": []
   },
   "LITE": {
     "resistance": {
@@ -209,9 +258,15 @@
         "2026-08-21",
         "2026-10-21"
       ]
-    }
+    },
+    "support": null,
+    "archived": []
   },
-  "MRVL": {},
+  "MRVL": {
+    "support": null,
+    "resistance": null,
+    "archived": []
+  },
   "MU": {
     "resistance": {
       "kind": "resistance",
@@ -226,7 +281,9 @@
         "2026-08-05",
         "2026-10-21"
       ]
-    }
+    },
+    "support": null,
+    "archived": []
   },
   "NBIS": {
     "resistance": {
@@ -243,7 +300,9 @@
         "2026-09-30",
         "2026-10-06"
       ]
-    }
+    },
+    "support": null,
+    "archived": []
   },
   "NOW": {
     "support": {
@@ -258,7 +317,9 @@
         "2026-06-25",
         "2026-07-23"
       ]
-    }
+    },
+    "resistance": null,
+    "archived": []
   },
   "RKLB": {
     "resistance": {
@@ -273,7 +334,9 @@
         "2026-08-10",
         "2026-08-17"
       ]
-    }
+    },
+    "support": null,
+    "archived": []
   },
   "SPCX": {
     "resistance": {
@@ -301,7 +364,8 @@
         "2026-09-02",
         "2026-10-15"
       ]
-    }
+    },
+    "archived": []
   },
   "TSLA": {
     "resistance": {
@@ -319,9 +383,15 @@
         "2026-10-09"
       ],
       "break_date": "2026-10-29"
-    }
+    },
+    "support": null,
+    "archived": []
   },
-  "VST": {},
+  "VST": {
+    "support": null,
+    "resistance": null,
+    "archived": []
+  },
   "WDC": {
     "resistance": {
       "kind": "resistance",
@@ -335,6 +405,8 @@
         "2026-08-27",
         "2026-09-23"
       ]
-    }
+    },
+    "support": null,
+    "archived": []
   }
 }

@@ -190,7 +190,7 @@ def make_message(raw,results,session_date,run_url):
                 continue
             signal=item.get("analysis",{}).get("active")
             if signal:
-                status=signal.get("status") or item.get("analysis",{}).get("status") or "UNKNOWN"
+                status=item.get("display_status") or signal.get("status") or item.get("analysis",{}).get("status") or "UNKNOWN"
                 setup=signal.get("setup") or "METHOD 20"
                 pattern=signal.get("pattern")
                 description=html.escape(str(status))+" | "+html.escape(str(setup))

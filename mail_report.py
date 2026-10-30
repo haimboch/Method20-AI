@@ -190,16 +190,17 @@ def make_message(raw,results,session_date,run_url):
                 continue
             signal=item.get("analysis",{}).get("active")
             if signal:
-                # Legacy/recovered reports may contain the setup levels but not
-                # the newer status or pattern fields. Keep rendering the chart.
                 status=signal.get("status") or item.get("analysis",{}).get("status") or "UNKNOWN"
                 setup=signal.get("setup") or "METHOD 20"
                 pattern=signal.get("pattern")
-                description=html.escape(str(status))+' | '+html.escape(str(setup))
+                description=html.escape(str(status))+" | "+html.escape(str(setup))
                 if pattern:
-                    description+=' | '+html.escape(str(pattern))
+                    description+=" | "+html.escape(str(pattern))
                 if signal.get("high") is not None:
-                    description+=' | טריגר 
+                    description+=" | Trigger USD "+fmt2(signal["high"])
+                if signal.get("low") is not None:
+                    description+=" | Technical stop USD "+fmt2(signal["low"])
+                parts.append("<p>"+description+"</p>")
             if item.get("risk_reward") is not None:
                 parts.append('<p>יחס סיכוי־סיכון משוער: 1:'
                              +fmt2(item["risk_reward"])+' (מידע בלבד)</p>')

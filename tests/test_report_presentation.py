@@ -48,6 +48,29 @@ class ReportTests(unittest.TestCase):
         book=update_book(d,{"support":z},None,None)
         self.assertEqual(book["support"]["status"],"WAITING_RETEST")
 
+    def test_support_is_hidden_when_price_moves_below_it(self):
+        d=pd.DataFrame([{"date":f"2026-10-{i+1:02d}","open":100,
+            "high":101,"low":97,"close":99,"volume":1000,
+            "sma20":100} for i in range(22)])
+        # Only one close below the zone; should not mark it broken.
+        d.loc[20,"close"]=101
+        zone={"kind":"support","low":100,"high":102,"status":"ACTIVE",
+              "score":90,"created_at":"2026-10-01"}
+        book=update_book(d,{"support":zone},"support",99)
+        from method20_zones import zone_is_relevant
+        visible=chosen_zone(book,"support")
+        self.assertTrue(visible is None or zone_is_relevant(visible,"support",99))
+
+    def test_resistance_must_be_above_original_trigger(self):
+        d=pd.DataFrame([{"date":f"2026-10-{i+1:02d}","open":103,
+            "high":105,"low":101,"close":103,"volume":1000,
+            "sma20":103} for i in range(22)])
+        zone={"kind":"resistance","low":100,"high":104,"status":"ACTIVE",
+              "score":90,"created_at":"2026-10-01"}
+        book=update_book(d,{"resistance":zone},"resistance",105)
+        visible=chosen_zone(book,"resistance")
+        self.assertTrue(visible is None or visible["low"]>105)
+
     def test_rr_is_information(self):
         self.assertEqual(risk_reward({"high":105,"low":100},
                                     {"low":115,"high":117}),2)

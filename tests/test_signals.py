@@ -11,6 +11,9 @@ class Method20Tests(unittest.TestCase):
            "vol20":100,"cci":-20} for x in dates])
         d.loc[24,"close"]=115
         d.loc[29,"close"]=105
+        d.loc[30,"close"]=108
+        d.loc[31,"close"]=106
+        d.loc[32,"close"]=104
         d.loc[32,"cci"]=-145
         d.loc[33,"cci"]=-160
         d.loc[34,["open","close","high","low","cci","volume"]]=[103,104,105,98,-120,180]
@@ -23,6 +26,12 @@ class Method20Tests(unittest.TestCase):
         c=candidate(d,34)
         self.assertEqual(c["status"],"CANDIDATE")
         self.assertEqual(c["setup"],"A: MEAN_REVERSION")
+
+    def test_no_bullish_pattern_without_preceding_downtrend(self):
+        d=self.data()
+        d.loc[27:33,"close"]=[99,100,101,102,103,104,105]
+        self.assertIsNone(detect_at(d,34))
+        self.assertIsNone(candidate(d,34))
 
     def test_cci_volume_confirmation(self):
         d=self.data()

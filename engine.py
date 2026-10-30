@@ -294,7 +294,7 @@ def render(results,portfolio=None):
         a=r["analysis"];signal=a.get("active")
         annotation=""
         if signal:
-            annotation='<p>'+html.escape(signal["status"])+' | '+html.escape(signal["setup"])
+            annotation='<p>'+html.escape(r.get("display_status",signal["status"]))+' | '+html.escape(signal["setup"])
             annotation+=' | '+html.escape(signal["pattern"])
             annotation+=' | טריגר $'+fmt2(signal["high"])+' | סטופ טכני $'+fmt2(signal["low"])
             if r.get("risk_reward") is not None:
@@ -363,6 +363,9 @@ def main():
             market_data[s]={"close":float(d.close.iloc[-1]),
                             "low":float(d.low.iloc[-1]),"date":str(d.date.iloc[-1])}
             results.append({"symbol":s,"analysis":a,"zone":zone,
+                            "display_status":("HISTORICAL_TRIGGER" if active and
+                                active["status"]=="TRIGGERED" and not triggered_recent
+                                else a["status"]),
                             "risk_reward":risk_reward(active,zone) if kind=="resistance" else None})
             print(f"{s}: {a['symbol_date']} {a['active']['status'] if a['active'] else 'NO ACTIVE SETUP'}")
         except Exception as e:

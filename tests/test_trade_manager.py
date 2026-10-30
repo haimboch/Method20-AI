@@ -37,7 +37,7 @@ class TradeLedgerTests(unittest.TestCase):
 
     def test_skip_signal_date(self):
         _,_,closed=replay([self.event("SKIP_TRADE",signal_date="2026-10-19")])
-        self.assertEqual(closed["XYZ"],{"2026-10-19"})
+        self.assertEqual(closed["XYZ"],{"2026-10-19":"2026-10-20"})
 
     def test_stop_alert_not_retroactive(self):
         events=[self.event("BUY",quantity=10,price=100,stop=95),

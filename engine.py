@@ -348,9 +348,12 @@ def main():
             active=a.get("active")
             # Triggered levels are historical; they must not be treated
             # as prospective entry signals or drive a fresh resistance target.
-            kind=("resistance" if active and active["status"] in
-                  ("CANDIDATE","READY") else
-                  "support" if not active and falling(d) else None)
+            triggered_recent=bool(active and active.get("status")=="TRIGGERED" and
+                                  str(active.get("event_date",""))>=str(d.date.iloc[-8]))
+            kind=("resistance" if active and
+                  (active["status"] in ("CANDIDATE","READY") or triggered_recent)
+                  else "support" if falling(d) and
+                  (not active or active["status"]=="TRIGGERED") else None)
             reference=active["high"] if kind=="resistance" else (
                       float(d.close.iloc[-1]) if kind=="support" else None)
             book=update_book(d,zone_books.get(s),kind,reference)

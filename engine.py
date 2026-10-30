@@ -107,6 +107,7 @@ from report_format import fmt2, fmt_signed, format_numbers_in_text
 from report_sections import grouped_results, section_key, signal_for_display, signal_explanation
 
 from method20_zones import update_book, chosen_zone, risk_reward, falling
+from patterns_method20 import detect_at
 from trade_manager import load as load_trades, replay as replay_trades, report_rows
 
 
@@ -146,6 +147,22 @@ def reversal_for_chart(analysis,view):
     index=dates.get(str(signal.get("signal_date")))
     return (index,signal) if index is not None else None
 
+
+def recent_reversal_observation(d,lookback=12):
+    """Recent chart observation only; never creates a competing active setup."""
+    from signals import setup_context
+    for i in range(len(d)-1,max(24,len(d)-lookback)-1,-1):
+        if not setup_context(d,i):
+            continue
+        pattern=detect_at(d,i)
+        if pattern:
+            return {
+                "pattern":pattern["pattern"],
+                "start_date":str(d.iloc[pattern["start"]].date),
+                "signal_date":str(d.iloc[i].date),
+                "high":pattern["high"],"low":pattern["low"],
+            }
+    return None
 
 def chart(d,symbol,path,a,zone=None):
     """Price, SMA20, volume and CCI14, plus a single context-dependent overlay."""
@@ -199,6 +216,30 @@ def chart(d,symbol,path,a,zone=None):
                         transform=ax.transAxes,ha="right",va="top",fontsize=9,
                         color="#555555",
                         bbox={"facecolor":"white","alpha":.85,"edgecolor":"none"})
+    # A very old TRIGGERED alert remains in trade history, but must not
+    # hide a recent chart observation. This is NOT another tradable setup.
+    old_trigger=bool(signal and signal.get("status")=="TRIGGERED"
+                     and str(signal.get("event_date",""))<str(d.date.iloc[-8]))
+    no_signal=signal is None or old_trigger
+    if no_signal:
+        observation=recent_reversal_observation(d,lookback=12)
+        if observation:
+            dates={str(v):i for i,v in enumerate(d.date)}
+            start=dates.get(observation["start_date"])
+            end=dates.get(observation["signal_date"])
+            if start is not None and end is not None:
+                span=max(observation["high"]-observation["low"],.01)
+                ax.add_patch(Rectangle(
+                    (start-.48,observation["low"]-.04*span),
+                    end-start+.96,span*1.08,
+                    fill=False,edgecolor="#303030",lw=2,zorder=8))
+                ax.annotate(observation["pattern"]+" (shape only)",
+                            (end,observation["high"]),xytext=(0,13),
+                            textcoords="offset points",fontsize=8,ha="center",
+                            color="#333333")
+    if zone is None:
+        ax.text(.99,.03,"No verified price zone",transform=ax.transAxes,
+                ha="right",va="bottom",fontsize=8,color="#777777")
     if zone:
         color="#bf5555" if zone["kind"]=="resistance" else "#16815c"
         # Keep the band visually close to the current decision window.

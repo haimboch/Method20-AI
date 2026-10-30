@@ -103,6 +103,8 @@ def main():
         if value:event[field]=float(value)
     if action=="SKIP_TRADE" and not event.get("signal_date"):
         raise ValueError("SKIP_TRADE requires signal_date to release the matching signal")
+    if action=="BUY" and not event.get("signal_date"):
+        raise ValueError("BUY requires signal_date to link the position to the METHOD20 signal")
     if action=="BUY":
         for field in ("quantity","price","stop"):
             if field not in event:raise ValueError("BUY requires "+field)

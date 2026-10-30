@@ -95,6 +95,31 @@ class ReportTests(unittest.TestCase):
         visible=chosen_zone(book,"resistance")
         self.assertTrue(visible is None or visible["low"]>105)
 
+    def test_hidden_support_keeps_fixed_boundaries(self):
+        d=pd.DataFrame([{"date":str(t.date()),"open":105,
+            "high":107,"low":103,"close":105,"volume":1000,"sma20":104}
+            for t in pd.date_range("2026-09-01",periods=25,freq="B")])
+        locked={"kind":"support","low":100,"high":102,
+                "status":"ACTIVE","score":80,"created_at":"2026-08-01"}
+        hidden=update_book(d,{"support":locked},None,None)
+        self.assertEqual(hidden["support"]["status"],"HIDDEN")
+        self.assertEqual(hidden["support"]["low"],100)
+        restored=update_book(d,hidden,"support",105)
+        self.assertEqual(restored["support"]["status"],"ACTIVE")
+        self.assertEqual(restored["support"]["high"],102)
+
+    def test_broken_support_not_restored_as_support(self):
+        d=pd.DataFrame([{"date":str(t.date()),"open":99,
+            "high":101,"low":96,"close":98,"volume":1000,"sma20":99}
+            for t in pd.date_range("2026-09-01",periods=25,freq="B")])
+        z={"kind":"support","low":100,"high":102,"status":"HIDDEN",
+           "score":75,"created_at":"2026-08-01"}
+        book=update_book(d,{"support":z},"support",108)
+        self.assertTrue(book.get("support") is None or
+                        book["support"].get("status") not in ("ACTIVE","HIDDEN"))
+        self.assertTrue(any(q.get("status")=="WAITING_RETEST"
+                            for q in book.get("archived",[])))
+
     def test_rr_is_information(self):
         self.assertEqual(risk_reward({"high":105,"low":100},
                                     {"low":115,"high":117}),2)

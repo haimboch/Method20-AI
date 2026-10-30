@@ -83,7 +83,21 @@
       ]
     }
   },
-  "BMNR": {},
+  "BMNR": {
+    "support": {
+      "kind": "support",
+      "low": 20.4363,
+      "high": 20.9587,
+      "score": 57.96,
+      "touches": 2,
+      "created_at": "2026-10-29",
+      "status": "ACTIVE",
+      "history": [
+        "2026-10-15",
+        "2026-10-27"
+      ]
+    }
+  },
   "CBRS": {
     "resistance": {
       "kind": "resistance",
@@ -231,7 +245,21 @@
       ]
     }
   },
-  "NOW": {},
+  "NOW": {
+    "support": {
+      "kind": "support",
+      "low": 88.6637,
+      "high": 92.2574,
+      "score": 47.21,
+      "touches": 2,
+      "created_at": "2026-10-29",
+      "status": "ACTIVE",
+      "history": [
+        "2026-06-25",
+        "2026-07-23"
+      ]
+    }
+  },
   "RKLB": {
     "resistance": {
       "kind": "resistance",
@@ -259,6 +287,19 @@
       "history": [
         "2026-09-08",
         "2026-09-21"
+      ]
+    },
+    "support": {
+      "kind": "support",
+      "low": 137.5541,
+      "high": 141.2759,
+      "score": 56.58,
+      "touches": 2,
+      "created_at": "2026-10-29",
+      "status": "ACTIVE",
+      "history": [
+        "2026-09-02",
+        "2026-10-15"
       ]
     }
   },

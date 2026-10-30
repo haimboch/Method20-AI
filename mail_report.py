@@ -151,7 +151,7 @@ def make_message(raw,results,session_date,run_url):
     msg["From"]=TO;msg["To"]=TO
     msg["Subject"]="METHOD 20 | דוח מסחר "+session_date.isoformat()
     msg.set_content("METHOD 20: "+session_date.isoformat()
-                    +"\\nגרפים יומיים, סטאפים, פוזיציות והתראות סטופ.")
+                    +"\nגרפים יומיים, סטאפים, פוזיציות והתראות סטופ.")
     parts=['<!doctype html><html lang="he" dir="rtl"><meta charset="utf-8">',
            '<body style="margin:0;padding:16px;font-family:Arial,sans-serif;background:#f2f5f9">',
            '<div style="max-width:1200px;margin:auto"><h1>METHOD 20</h1>']

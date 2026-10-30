@@ -1,10 +1,10 @@
-# METHOD 20 | CHART-ONLY MODE (2026-10-30)
+# METHOD 20 | STAGE 1 VISUAL PATTERNS (2026-10-30)
 
-**Current active behavior:** Daily email charts for the watchlist only. Each chart has exactly 95 daily Japanese candlesticks, SMA20, daily Volume and CCI(14). There are NO trading signals, candle pattern markings, trigger levels, support/resistance zones, portfolio tables or stop warnings.
+**Current active behavior:** Daily email charts for the watchlist only. Each chart has exactly 95 daily Japanese candlesticks, SMA20, daily Volume and CCI(14). Stage 1 overlays black boxes for the final bar when it is Hammer / Regular Doji / Dragonfly Doji with volume above the previous 20-session average, and seven bullish 2- or 3-candle patterns completed in the last five daily candles without any volume, prior-trend or SMA filter. More complex patterns take precedence when they overlap. There are NO trading triggers, support/resistance zones, portfolio tables or stop warnings.
 
 The overnight EOD workflow fetches verified Massive daily OHLCV and produces an HTML report and chart images. The morning email workflow sends the same charts inline. Legacy strategies and stored market zone/trade data files are retained as inactive historical code/data; the report engine does not read or update them. The manual trade-manager workflow has been disabled. Previous draft PR #1 has been closed without merging.
 
-The latest report metadata sets `report_type=CHART_ONLY` and `candles_per_chart=95` to prevent reusing obsolete report artifacts when preparing an email.
+The latest report metadata sets `report_type=CHART_WITH_STAGE1_MARKS` and `candles_per_chart=95` to prevent reusing obsolete report artifacts when preparing an email.
 
 ---
 

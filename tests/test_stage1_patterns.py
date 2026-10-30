@@ -1,0 +1,56 @@
+"""Stage 1 visual marking, without market-context or trade conditions."""
+import unittest
+import pandas as pd
+from stage1_patterns import annotations
+
+class StageOnePatternsTest(unittest.TestCase):
+    def bars(self):
+        dates=pd.date_range("2026-06-01",periods=110,freq="B")
+        return pd.DataFrame([{"date":str(t.date()),"open":100.,
+            "high":102.,"low":98.,"close":101.,"volume":100.}
+            for t in dates])
+
+    def test_last_bar_green_and_red_hammer_need_above_previous_20_volume(self):
+        for o,c in ((102.,103.),(103.,102.)):
+            d=self.bars()
+            d.loc[109,["open","high","low","close","volume"]]=[o,104.,94.,c,101.]
+            labels=[x["pattern"] for x in annotations(d)]
+            self.assertIn("HAMMER",labels)
+            d.loc[109,"volume"]=100.
+            self.assertNotIn("HAMMER",[x["pattern"] for x in annotations(d)])
+
+    def test_regular_and_dragonfly_doji_final_only(self):
+        d=self.bars()
+        d.loc[109,["open","high","low","close","volume"]]=[100.,104.,96.,100.,110.]
+        self.assertIn("REGULAR_DOJI",[x["pattern"] for x in annotations(d)])
+        d.loc[109,["open","high","low","close"]]=[103.9,104.,95.,103.9]
+        self.assertIn("DRAGONFLY_DOJI",[x["pattern"] for x in annotations(d)])
+        d.loc[109,"volume"]=99.
+        self.assertFalse(any(x["kind"]=="SINGLE" for x in annotations(d)))
+
+    def test_two_bar_bullish_engulfing_no_volume_or_downtrend_filter(self):
+        d=self.bars()
+        d.loc[106,["open","high","low","close","volume"]]=[108.,109.,100.,101.,15.]
+        d.loc[107,["open","high","low","close","volume"]]=[100.,111.,99.,110.,20.]
+        found=[x for x in annotations(d) if x["pattern"]=="BULLISH_ENGULFING"]
+        self.assertEqual(len(found),1)
+        self.assertEqual((found[0]["start"],found[0]["end"]),(91,92))
+        self.assertEqual(found[0]["kind"],"COMPLEX")
+
+    def test_only_patterns_completed_in_last_five(self):
+        d=self.bars()
+        d.loc[102,["open","high","low","close"]]=[108.,109.,100.,101.]
+        d.loc[103,["open","high","low","close"]]=[100.,111.,99.,110.]
+        self.assertNotIn("BULLISH_ENGULFING",[x["pattern"] for x in annotations(d)])
+
+    def test_three_bar_pattern_preferred_to_overlapping_two_bar(self):
+        d=self.bars()
+        d.loc[107,["open","high","low","close"]]=[110.,111.,97.,98.]
+        d.loc[108,["open","high","low","close"]]=[99.,104.,98.,102.]
+        d.loc[109,["open","high","low","close"]]=[103.,114.,102.,113.]
+        found=annotations(d)
+        self.assertIn("THREE_INSIDE_UP",[x["pattern"] for x in found])
+        self.assertEqual(sum(1 for x in found if x["end"]==94),1)
+
+if __name__=="__main__":
+    unittest.main()

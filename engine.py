@@ -244,6 +244,11 @@ def main():
     if not 1<=len(symbols)<=40:
         raise ValueError("Watchlist size must stay between 1 and 40 tickers")
     print(f"WATCHLIST_COUNT={len(symbols)}",flush=True)
+    trade_events=load_trades()
+    positions,trade_history,closed_signals=replay_trades(trade_events)
+    zones_path=ROOT/"state"/"market_zones.json"
+    zone_books=json.loads(zones_path.read_text(encoding="utf-8")) if zones_path.exists() else {}
+    market_data={}
     results=[]
     # Conservative shared request pacing for vendor plans with low RPM limits.
     # No local machine or extra secrets required.
@@ -261,14 +266,31 @@ def main():
             if expected and str(d.iloc[-1].date)!=expected:
                 raise ValueError("Stale latest daily candle: expected "+expected+
                                  ", got "+str(d.iloc[-1].date))
-            a=analyze(d)
-            chart(d,s,OUT/"charts"/f"{s}.png",a)
-            results.append({"symbol":s,"analysis":a})
+            a=analyze(d,closed_signal_dates=closed_signals.get(s,set()))
+            active=a.get("active")
+            kind=("resistance" if active and active["status"] in
+                  ("CANDIDATE","READY","TRIGGERED") else
+                  "support" if falling(d) else None)
+            reference=active["high"] if kind=="resistance" else (
+                      float(d.close.iloc[-1]) if kind=="support" else None)
+            book=update_book(d,zone_books.get(s),kind,reference)
+            zone_books[s]=book
+            zone=chosen_zone(book,kind) if kind else None
+            chart(d,s,OUT/"charts"/f"{s}.png",a,zone)
+            market_data[s]={"close":float(d.close.iloc[-1]),
+                            "low":float(d.low.iloc[-1]),"date":str(d.date.iloc[-1])}
+            results.append({"symbol":s,"analysis":a,"zone":zone,
+                            "risk_reward":risk_reward(active,zone) if kind=="resistance" else None})
             print(f"{s}: {a['symbol_date']} {a['active']['status'] if a['active'] else 'NO ACTIVE SETUP'}")
         except Exception as e:
             results.append({"symbol":s,"error":str(e)})
             print(f"{s}: ERROR type={type(e).__name__} detail={e}",flush=True)
-    render(results)
+    portfolio_rows,stop_alerts=report_rows(trade_events,market_data)
+    portfolio={"rows":portfolio_rows,"alerts":stop_alerts}
+    (OUT/"portfolio.json").write_text(json.dumps(portfolio,ensure_ascii=False,indent=2),encoding="utf-8")
+    zones_path.parent.mkdir(parents=True,exist_ok=True)
+    zones_path.write_text(json.dumps(zone_books,ensure_ascii=False,indent=2)+"\\n",encoding="utf-8")
+    render(results,portfolio)
     errors=[x["symbol"] for x in results if "error" in x]
     if errors:
         print("REPORT_INCOMPLETE tickers:",", ".join(errors),flush=True)

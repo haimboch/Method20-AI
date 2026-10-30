@@ -11,9 +11,9 @@ class StageOnePatternsTest(unittest.TestCase):
             for t in dates])
 
     def test_last_bar_green_and_red_hammer_need_above_previous_20_volume(self):
-        for o,c in ((102.,103.),(103.,102.)):
+        for o,c in ((102.,104.),(104.,102.)):
             d=self.bars()
-            d.loc[109,["open","high","low","close","volume"]]=[o,104.,94.,c,101.]
+            d.loc[109,["open","high","low","close","volume"]]=[o,105.,94.,c,101.]
             labels=[x["pattern"] for x in annotations(d)]
             self.assertIn("HAMMER",labels)
             d.loc[109,"volume"]=100.

@@ -197,7 +197,7 @@ def make_message(raw,results,session_date,run_url):
                 if pattern:
                     description+=" | "+html.escape(str(pattern))
                 if signal.get("high") is not None:
-                    description+=(" | Historical trigger USD " if status=="TRIGGERED" else " | Entry trigger USD ")+fmt2(signal["high"])
+                    description+=(" | Historical trigger USD " if status in ("TRIGGERED","HISTORICAL_TRIGGER") else " | Entry trigger USD ")+fmt2(signal["high"])
                 if signal.get("low") is not None:
                     description+=" | Technical stop USD "+fmt2(signal["low"])
                 parts.append("<p>"+description+"</p>")

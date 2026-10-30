@@ -9,6 +9,8 @@ SECTIONS=(
 
 def section_key(item):
     analysis=item.get("analysis") or {}
+    if item.get("display_status")=="HISTORICAL_TRIGGER":
+        return "OTHER"
     status=analysis.get("status")
     if status=="READY" and analysis.get("active"):
         return "READY"

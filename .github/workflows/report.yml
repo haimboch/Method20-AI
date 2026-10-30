@@ -11,10 +11,10 @@ on:
     - cron: "10 22 * * 1-5"
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
-  group: method20-report-${{ github.ref }}
+  group: method20-state-write
   cancel-in-progress: false
 
 jobs:
@@ -33,9 +33,8 @@ jobs:
         env:
           GITHUB_EVENT_NAME: ${{ github.event_name }}
         run: python schedule_guard.py
-      - name: Verify signal rules (non-blocking quality checks)
+      - name: Verify METHOD20 rules
         if: steps.guard.outputs.should_run == 'true'
-        continue-on-error: true
         run: python -m unittest discover -s tests -v
       - name: Generate actual-data HTML report
         if: steps.guard.outputs.should_run == 'true'
@@ -43,6 +42,13 @@ jobs:
           MASSIVE_API_KEY: ${{ secrets.MASSIVE_API_KEY }}
           EXPECTED_SESSION_DATE: ${{ github.event_name == 'schedule' && steps.guard.outputs.session_date || '' }}
         run: python engine.py
+      - name: Persist locked zones for the next session
+        if: steps.guard.outputs.should_run == 'true'
+        run: |
+          git config user.name "method20-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add state/market_zones.json
+          git diff --cached --quiet || (git commit -m "Update locked METHOD20 market zones" && git push)
       - name: Upload report
         if: steps.guard.outputs.should_run == 'true'
         uses: actions/upload-artifact@v4

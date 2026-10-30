@@ -13,6 +13,20 @@ class ReportTests(unittest.TestCase):
         dates=daily_session_dates(stamps)
         self.assertEqual(str(dates.iloc[0]),"2026-10-29")
 
+    def test_recent_reversal_is_visible_as_observation_not_new_trade(self):
+        from engine import recent_reversal_observation
+        dates=pd.date_range("2026-08-01",periods=35,freq="B")
+        d=pd.DataFrame([{"date":str(x.date()),"open":112,"close":110,
+           "high":114,"low":108,"volume":100,"sma20":120,
+           "vol20":100,"cci":-20} for x in dates])
+        d.loc[24,"close"]=115
+        d.loc[29,"close"]=105
+        d.loc[34,["open","close","high","low"]]=[103,104,105,98]
+        found=recent_reversal_observation(d)
+        self.assertIsNotNone(found)
+        self.assertEqual(found["pattern"],"HAMMER")
+        self.assertNotIn("status",found)
+
     def test_chart_has_candles_volume_cci_and_overlay(self):
         d=pd.DataFrame([{"date":f"2026-10-{i+1:02d}","open":100+i*.2,
                "high":101+i*.2,"low":99+i*.2,"close":100.5+i*.2,

@@ -1,0 +1,24 @@
+name: METHOD 20 Validation
+on:
+  push:
+    paths:
+      - '*.py'
+      - 'tests/**'
+      - 'requirements.txt'
+      - '.github/workflows/**'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m pip install -r requirements.txt
+      - name: Compile all python modules
+        run: python -m compileall -q .
+      - name: Execute unit tests
+        run: python -m unittest discover -s tests -v

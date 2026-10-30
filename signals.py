@@ -52,7 +52,7 @@ def candidate(d,i):
             "status":"CANDIDATE","confirmation_date":None}
 
 def confirmation(d,i,signal):
-    if i-signal["signal_index"]>2:return False
+    if i<signal["signal_index"] or i-signal["signal_index"]>2:return False
     # The turn may have occurred on the signal day; it remains valid while CCI rises.
     turned=any(cci_upturn(d,j) for j in range(signal["signal_index"],i+1))
     if not turned or i<1 or not (d.cci.iloc[i]>d.cci.iloc[i-1]):return False
@@ -84,7 +84,10 @@ def transition(signal,day,date=None):
     upper=bool(day.high>signal["high"])
     lower=bool(day.low<signal["low"])
     if status=="TRIGGERED":
-        if lower:updated["technical_stop_touched"]=day_date
+        if lower:
+            updated["status"]="BROKEN"
+            updated["technical_stop_touched"]=day_date
+            updated["event_date"]=day_date
         return updated
     if upper or lower:
         updated["status"]=("AMBIGUOUS" if upper and lower else

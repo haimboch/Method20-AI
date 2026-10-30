@@ -81,67 +81,98 @@ def falling(d):
                 (segment.high.iloc[-1]<segment.high.iloc[0] or
                  segment.close.iloc[-1]<d.sma20.iloc[-1]))
 
+def _broken(zone,kind,closes):
+    if len(closes)<2:return False
+    return (all(v<float(zone["low"]) for v in closes) if kind=="support"
+            else all(v>float(zone["high"]) for v in closes))
+
+def _retest(d,zone,kind):
+    if len(d)<22:return False
+    atr=atr14(d)
+    x=d.iloc[-1]
+    avg=float(d.volume.iloc[-21:-1].mean())
+    if not math.isfinite(atr) or atr<=0 or avg<=0 or x.volume<avg:
+        return False
+    if kind=="resistance": # old resistance retested as support
+        touched=zone["low"]<=x.low<=zone["high"] and x.close>zone["high"]
+        reaction=float(x.close-x.low)
+    else: # old support retested as resistance
+        touched=zone["low"]<=x.high<=zone["high"] and x.close<zone["low"]
+        reaction=float(x.high-x.close)
+    return bool(touched and reaction>=.75*atr)
+
 def update_book(d,book,display_kind=None,reference=None):
-    """Do not shift locked boundaries, including while hidden or outside chart."""
+    """Fixed price bands; persist and validate even while hidden.
+
+    Existing locks are not replaced just because another candidate scores
+    better. Historical bands survive the 95-candle viewing window.
+    """
     book=dict(book or {})
-    closes=[float(v) for v in d.close.tail(2)]
+    today=str(d.date.iloc[-1])
+    closes=list(map(float,d.close.tail(2)))
+    history=list(book.get("archived",[]))
+    def validate(zone,kind):
+        if zone is None:return None
+        z=dict(zone)
+        status=z.get("status","HIDDEN")
+        if status in ("ACTIVE","HIDDEN") and _broken(z,kind,closes):
+            z["status"]="WAITING_RETEST"
+            z["break_date"]=today
+        elif status=="WAITING_RETEST" and today>z.get("break_date",today):
+            if _retest(d,z,kind):
+                z["status"]="ROLE_REVERSED"
+                z["retest_date"]=today
+        return z
     for kind in ("support","resistance"):
-        zone=book.get(kind)
-        if not zone:continue
-        zone=dict(zone)
-        if zone["status"] in ("ACTIVE","HIDDEN"):
-            broken=(all(c<zone["low"] for c in closes) if kind=="support"
-                    else all(c>zone["high"] for c in closes))
-            if broken:
-                zone["status"]="WAITING_RETEST"
-                zone["break_date"]=str(d.date.iloc[-1])
-            elif kind!=display_kind:
-                zone["status"]="HIDDEN"
-            else:
-                zone["status"]="ACTIVE"
-        # A broken zone stays historical; role-reversal requires an independent retest.
-        if zone["status"]=="WAITING_RETEST" and str(d.date.iloc[-1])>zone["break_date"]:
-            atr=atr14(d)
-            last=d.iloc[-1]
-            if kind=="resistance": # old resistance can become support
-                touched=last.low<=zone["high"] and last.close>=zone["high"]
-                reaction=last.close-zone["low"]
-            else:
-                touched=last.high>=zone["low"] and last.close<=zone["low"]
-                reaction=zone["high"]-last.close
-            avg=d.volume.iloc[-21:-1].mean()
-            if touched and reaction>=.75*atr and avg>0 and last.volume>=avg:
-                zone["status"]="ROLE_REVERSED"
-                other="support" if kind=="resistance" else "resistance"
-                if not book.get(other) or book[other].get("status")!="ACTIVE":
-                    book[other]={**zone,"kind":other,"status":"HIDDEN",
-                                 "created_at":str(last.date)}
-        book[kind]=zone
-    if display_kind:
-        zone=book.get(display_kind)
-        eligible=lambda z: (
-            z is not None and z.get("status") in ("ACTIVE","HIDDEN")
-            and reference is not None
-            and (float(z["high"])<float(reference) if display_kind=="support"
-                 else float(z["low"])>float(reference)))
-        if not eligible(zone):
-            if zone and zone.get("status") in ("ACTIVE","HIDDEN"):
-                # Historical levels are retained, but never displayed on the
-                # wrong side of the current price/trigger.
-                zone["status"]="HIDDEN"
-                book.setdefault("archived",[]).append(dict(zone))
-            zone=None
-            for old in reversed(book.get("archived",[])):
-                if old.get("kind")==display_kind and eligible(old):
-                    zone=dict(old)
-                    break
-            if zone is None:
-                choices=candidates(d,display_kind,reference)
-                zone=choices[0] if choices else None
-            if zone is not None:
-                book[display_kind]=zone
-        if zone is not None and eligible(zone):
-            zone["status"]="ACTIVE"
+        book[kind]=validate(book.get(kind),kind)
+    history=[validate(z,z["kind"]) for z in history]
+    # Restore confirmed role reversals only when no active zone already
+    # occupies the destination type, respecting its original fixed edges.
+    for src in ("support","resistance"):
+        z=book.get(src)
+        if z and z.get("status")=="ROLE_REVERSED":
+            dst="resistance" if src=="support" else "support"
+            existing=book.get(dst)
+            if existing is None or existing.get("status") not in ("ACTIVE","HIDDEN"):
+                book[dst]={**z,"kind":dst,"status":"HIDDEN",
+                           "created_at":z.get("retest_date",today)}
+    for z in history:
+        if z.get("status")=="ROLE_REVERSED":
+            dst="resistance" if z["kind"]=="support" else "support"
+            existing=book.get(dst)
+            if existing is None or existing.get("status") not in ("ACTIVE","HIDDEN"):
+                book[dst]={**z,"kind":dst,"status":"HIDDEN",
+                           "created_at":z.get("retest_date",today)}
+    for kind in ("support","resistance"):
+        z=book.get(kind)
+        if z and z.get("status") in ("ACTIVE","HIDDEN"):
+            z["status"]="HIDDEN"
+    if display_kind in ("support","resistance") and reference is not None:
+        kind=display_kind
+        z=book.get(kind)
+        valid=lambda q: (q is not None and q.get("status") in ("ACTIVE","HIDDEN")
+                         and zone_is_relevant(q,kind,float(reference)))
+        if z and z.get("status") in ("ACTIVE","HIDDEN"):
+            # Retain this specific lock even when it is temporarily on
+            # the wrong side. It can become visible again without replacement.
+            if valid(z):
+                z["status"]="ACTIVE"
+        else:
+            # Replace a confirmed broken zone; archive its previous evidence.
+            if z:
+                if not any(q.get("kind")==kind and q.get("created_at")==z.get("created_at")
+                           and q.get("low")==z.get("low") for q in history):
+                    history.append(dict(z))
+            found=next((dict(q) for q in reversed(history) if q["kind"]==kind
+                        and valid(q)),None)
+            if found is None:
+                choices=candidates(d,kind,float(reference))
+                found=choices[0] if choices else None
+            if found is not None:
+                book[kind]={**found,"status":"ACTIVE"}
+            elif z:
+                book[kind]=None
+    book["archived"]=history
     return book
 
 def chosen_zone(book,kind):

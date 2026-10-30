@@ -3,6 +3,7 @@
 SECTIONS=(
     ("READY","סטאפים מוכנים לפריצה"),
     ("TRIGGERED","סטאפים שהטריגר שלהם נפרץ"),
+    ("CANDIDATE","תבניות מועמדות ללא אישור מלא"),
     ("OTHER","מניות ללא סטאפ כניסה תקף"),
 )
 
@@ -11,6 +12,11 @@ def section_key(item):
     status=analysis.get("status")
     if status=="READY" and analysis.get("active"):
         return "READY"
+    active=analysis.get("active") or {}
+    if status=="CANDIDATE" and active.get("status")=="CANDIDATE":
+        return "CANDIDATE"
+    if status=="TRIGGERED" and active.get("status")=="TRIGGERED":
+        return "TRIGGERED"
     last=analysis.get("last_event") or {}
     if status=="TRIGGERED" and last.get("status")=="TRIGGERED":
         return "TRIGGERED"
@@ -40,8 +46,8 @@ PATTERN_DESCRIPTION={
 def signal_for_display(item):
     a=item.get("analysis") or {}
     key=section_key(item)
-    return (a.get("active") if key=="READY"
-            else a.get("last_event") if key=="TRIGGERED" else None)
+    return (a.get("active") if key in ("READY","CANDIDATE")
+            else (a.get("active") or a.get("last_event")) if key=="TRIGGERED" else None)
 
 def signal_explanation(signal):
     if not signal: return None

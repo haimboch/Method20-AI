@@ -157,20 +157,53 @@ def chart(d,symbol,path,a,zone=None):
     ax.plot(np.arange(len(d)),d.sma20,color="#e5a522",lw=2.2,label="SMA20")
     signal=a.get("active")
     if signal and signal["status"] in ("CANDIDATE","READY","TRIGGERED"):
-        # Draw exactly one rectangle spanning the original pattern candles.
         dates={str(v):i for i,v in enumerate(d.date)}
-        i0=dates.get(signal["start_date"])
-        i1=dates.get(signal["signal_date"])
+        i0=dates.get(signal.get("start_date"))
+        i1=dates.get(signal.get("signal_date"))
         if i0 is not None and i1 is not None:
-            span=max(signal["high"]-signal["low"],.01)
-            ax.add_patch(Rectangle((i0-.48,signal["low"]-.04*span),
-                i1-i0+.96,span*1.08,fill=False,edgecolor="black",lw=2.5,zorder=9))
-        ax.axhline(signal["high"],color="black",lw=1.8,ls="--",
-                   label="Trigger "+fmt2(signal["high"]))
+            span=max(float(signal["high"])-float(signal["low"]),.01)
+            ax.add_patch(Rectangle((i0-.48,float(signal["low"])-.04*span),
+                i1-i0+.96,span*1.08,fill=False,edgecolor="black",lw=2.3,zorder=9))
+            ax.annotate(signal["pattern"],(i1,signal["high"]),
+                        xytext=(0,13),textcoords="offset points",
+                        fontsize=8,ha="center",color="#171717")
+        # Trigger is a future actionable level only while CANDIDATE / READY.
+        # Once breached, it becomes a historical marker, not a fresh entry line.
+        triggered=signal["status"]=="TRIGGERED"
+        event_index=dates.get(str(signal.get("event_date",""))) if triggered else None
+        if triggered:
+            left=max(i1 if i1 is not None else 0,0)
+            right=event_index if event_index is not None else left
+            if right>left:
+                ax.hlines(float(signal["high"]),left,right,
+                          color="#444444",lw=1.4,ls=":",
+                          label="Historical trigger "+fmt2(signal["high"]))
+            else:
+                ax.plot([left],[float(signal["high"])],marker="x",
+                        color="#444444",ms=7,label="Historical trigger")
+        else:
+            # Extend only from the signal to today's bar, never backward
+            # through irrelevant historical candles.
+            ax.hlines(float(signal["high"]),
+                      i1 if i1 is not None else len(d)-1,len(d)-.2,
+                      color="black",lw=1.8,ls="--",
+                      label="Entry trigger "+fmt2(signal["high"]))
+        if i1 is not None:
+            age=len(d)-1-i1
+            if age>=10:
+                ax.text(.99,.975,signal["status"]+" | "+str(age)+" sessions old",
+                        transform=ax.transAxes,ha="right",va="top",fontsize=9,
+                        color="#555555",
+                        bbox={"facecolor":"white","alpha":.85,"edgecolor":"none"})
     if zone:
         color="#bf5555" if zone["kind"]=="resistance" else "#16815c"
-        ax.axhspan(zone["low"],zone["high"],color=color,alpha=.18,
-                   label=zone["kind"].title())
+        # Keep the band visually close to the current decision window.
+        start=max(0,len(d)-35)
+        ax.fill_between([start,len(d)-.1],zone["low"],zone["high"],
+                        color=color,alpha=.16,
+                        label=zone["kind"].title()+" "+fmt2(zone["low"])+"-"+fmt2(zone["high"]))
+        ax.hlines([zone["low"],zone["high"]],start,len(d)-.1,
+                  color=color,lw=.7,alpha=.6)
     ax.yaxis.set_major_formatter(FormatStrFormatter("%.2f"))
     cax.yaxis.set_major_formatter(FormatStrFormatter("%.2f"))
     ax.set_title(symbol+"  |  1D  |  "+str(d.iloc[-1].date),fontsize=16)
@@ -268,9 +301,11 @@ def main():
                                  ", got "+str(d.iloc[-1].date))
             a=analyze(d,closed_signal_dates=closed_signals.get(s,set()))
             active=a.get("active")
+            # Triggered levels are historical; they must not be treated
+            # as prospective entry signals or drive a fresh resistance target.
             kind=("resistance" if active and active["status"] in
-                  ("CANDIDATE","READY","TRIGGERED") else
-                  "support" if falling(d) else None)
+                  ("CANDIDATE","READY") else
+                  "support" if not active and falling(d) else None)
             reference=active["high"] if kind=="resistance" else (
                       float(d.close.iloc[-1]) if kind=="support" else None)
             book=update_book(d,zone_books.get(s),kind,reference)

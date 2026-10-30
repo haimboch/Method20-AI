@@ -145,19 +145,42 @@ def compact_chart(image_bytes):
         return out.getvalue()
 
 def make_message(raw,results,session_date,run_url):
-    """Minimal inline-email report: ticker and 1D candle/SMA20/CCI14 chart."""
+    """Send chart-first report and current portfolio/stop alerts inline."""
     ordered=[item for _,_,items in grouped_results(results) for item in items]
     msg=EmailMessage()
-    msg["From"]=TO
-    msg["To"]=TO
+    msg["From"]=TO;msg["To"]=TO
     msg["Subject"]="METHOD 20 | דוח מסחר "+session_date.isoformat()
-    msg.set_content("METHOD 20 | "+session_date.isoformat()
-                    +"\nגרפים יומיים: נרות יפניים, SMA20, CCI14.")
-    parts=['<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8"></head>',
+    msg.set_content("METHOD 20: "+session_date.isoformat()
+                    +"\\nגרפים יומיים, סטאפים, פוזיציות והתראות סטופ.")
+    parts=['<!doctype html><html lang="he" dir="rtl"><meta charset="utf-8">',
            '<body style="margin:0;padding:16px;font-family:Arial,sans-serif;background:#f2f5f9">',
            '<div style="max-width:1200px;margin:auto"><h1>METHOD 20</h1>']
     images=[]
     with zipfile.ZipFile(io.BytesIO(raw)) as z:
+        portfolio=json.loads(z.read("portfolio.json")) if "portfolio.json" in z.namelist() else {"rows":[],"alerts":[]}
+        if portfolio["alerts"]:
+            parts.append('<section style="background:#fff0e9;padding:12px;border-radius:10px">'
+                         +'<h2>התראות סטופ | בדוק ביצוע בפועל</h2>')
+            for a in portfolio["alerts"]:
+                parts.append('<p><b>'+html.escape(a["symbol"])+'</b> | סטופ $'
+                            +fmt2(a["stop"])+' | שפל $'+fmt2(a["low"])
+                            +' | '+html.escape(str(a["date"]))+'</p>')
+            parts.append('</section>')
+        if portfolio["rows"]:
+            parts.append('<h2>פוזיציות פתוחות</h2><table border="1" cellspacing="0" cellpadding="7" '
+                         +'style="border-collapse:collapse;background:white;max-width:100%">'
+                         +'<tr><th>מניה</th><th>כמות</th><th>כניסה</th><th>סטופ</th>'
+                         +'<th>סגירה</th><th>ממומש</th><th>לא ממומש</th><th>סיכון לסטופ</th></tr>')
+            for p in portfolio["rows"]:
+                def money(v):
+                    return "$"+fmt2(v) if v is not None else "—"
+                parts.append('<tr><td>'+html.escape(p["symbol"])+'</td><td>'
+                             +fmt2(p["quantity"])+'</td><td>'+money(p["entry"])
+                             +'</td><td>'+money(p["stop"])+'</td><td>'
+                             +money(p["last_close"])+'</td><td>'+money(p["realized"])
+                             +'</td><td>'+money(p["unrealized"])+'</td><td>'
+                             +money(p["risk_to_stop"])+'</td></tr>')
+            parts.append('</table>')
         for index,item in enumerate(ordered):
             sym=html.escape(item["symbol"])
             parts.append('<section style="background:white;padding:14px;margin:16px 0;border-radius:12px">'
@@ -165,14 +188,25 @@ def make_message(raw,results,session_date,run_url):
             if "error" in item:
                 parts.append('<p>נתונים לא זמינים</p></section>')
                 continue
+            signal=item.get("analysis",{}).get("active")
+            if signal:
+                parts.append('<p>'+html.escape(signal["status"])+' | '
+                             +html.escape(signal["setup"])+' | '
+                             +html.escape(signal["pattern"])+' | טריגר $'
+                             +fmt2(signal["high"])+' | סטופ טכני $'
+                             +fmt2(signal["low"])+'</p>')
+            if item.get("risk_reward") is not None:
+                parts.append('<p>יחס סיכוי־סיכון משוער: 1:'
+                             +fmt2(item["risk_reward"])+' (מידע בלבד)</p>')
             chart_name="charts/"+item["symbol"]+".png"
             if chart_name not in z.namelist():
                 raise ValueError("Missing chart image: "+chart_name)
             cid="method20-chart-"+str(index)+"@local"
             images.append((cid,compact_chart(z.read(chart_name))))
-            parts.append('<img alt="1D candles SMA20 CCI14" src="cid:'+cid+'" '
+            parts.append('<img alt="1D candles SMA20 VOL CCI14" src="cid:'+cid+'" '
                          +'style="display:block;width:100%;height:auto"/></section>')
-    parts.append('</div></body></html>')
+    parts.append('<p style="font-size:12px">מידע למחקר בלבד. '
+                 +'נגיעה בסטופ אינה מוכיחה שבוצעה מכירה.</p></div></body></html>')
     msg.add_alternative("".join(parts),subtype="html")
     htmlpart=msg.get_payload()[-1]
     for cid,content in images:

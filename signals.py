@@ -45,9 +45,6 @@ def candidate(d,i):
     if not context:return None
     shape=detect_at(d,i)
     if not shape:return None
-    if context.startswith("A") and not bool((d.cci.iloc[i-5:i+1]<-100).any()):
-        # Oversold is a confirmation rule, not a condition for drawing a candidate.
-        pass
     return {"setup":context,"pattern":shape["pattern"],
             "signal_date":shape["signal_date"],"signal_index":i,
             "start_date":str(d.iloc[shape["start"]].date),
@@ -56,7 +53,9 @@ def candidate(d,i):
 
 def confirmation(d,i,signal):
     if i-signal["signal_index"]>2:return False
-    if not cci_upturn(d,i):return False
+    # The turn may have occurred on the signal day; it remains valid while CCI rises.
+    turned=any(cci_upturn(d,j) for j in range(signal["signal_index"],i+1))
+    if not turned or i<1 or not (d.cci.iloc[i]>d.cci.iloc[i-1]):return False
     x=d.iloc[i]
     avg=d.volume.iloc[i-20:i].mean()
     if pd.isna(avg) or avg<=0:return False

@@ -14,6 +14,7 @@ class Method20Tests(unittest.TestCase):
         d.loc[30,"close"]=108
         d.loc[31,"close"]=106
         d.loc[32,"close"]=104
+        d.loc[33,"close"]=109
         d.loc[32,"cci"]=-145
         d.loc[33,"cci"]=-160
         d.loc[34,["open","close","high","low","cci","volume"]]=[103,104,105,98,-120,180]

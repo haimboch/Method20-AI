@@ -103,3 +103,13 @@
 
 ## 30.10.2026: חזרת נפח המסחר לגרף
 לפי בקשת המשתמש, הוחזרה חלונית VOL (עמודות נפח מסחר יומי בצבע נר עולה/יורד) בין חלונית הנרות עם SMA20 לחלונית CCI14. יתר הפרטים שהוסרו נשארים מוסתרים. אין שינוי לניתוח הסטאפים או למבנה רשימת המניות.
+
+## 30 October 2026: METHOD 20 implementation release
+
+The latest working design is described in [METHOD20_IMPLEMENTATION.md](METHOD20_IMPLEMENTATION.md).
+
+**Manual trade entry:** Go to Actions > **METHOD 20 Manual Trade Manager** > **Run workflow**. Select BUY / SELL_PARTIAL / UPDATE_STOP / CLOSE / SKIP_TRADE and provide the ticker. For BUY, provide quantity, execution price, original stop and signal_date. For SKIP_TRADE, provide the original signal_date. For UPDATE_STOP, provide the newly raised stop. SELL_PARTIAL uses shares and executed price; CLOSE uses executed price and sells the entire remaining tracked quantity. Actions does not place broker orders.
+
+**Verification:** The **METHOD 20 Validation** workflow compiles Python and runs the unit tests. Verify it is green before relying on the scheduled EOD and email workflows. Then use a small manual test transaction and inspect the following morning email. Keep the repository private because the ledger records trading positions.
+
+**Pending design decision:** Whether and how to include fees in net P/L (current totals are gross). Live API, GitHub state push permissions and SMTP deliveries have not yet been end-to-end verified.

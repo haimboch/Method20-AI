@@ -40,3 +40,12 @@ Only one black rectangle around the active bullish formation and one black horiz
 * Zone clustering and reversal thresholds are heuristic and need tuning on real historical tickers.
 * Positions outside the watchlist can appear with missing market prices and no stop-crossing review until an OHLCV source is added for those symbols.
 * One full live end-to-end manual trade entry and next-morning email should be tested before relying on operational alerts.
+
+
+## 30 Oct 2026 correction pass (draft pull request)
+- Bullish candlestick recognition now requires a decline preceding the **first** pattern candle; an invalid early three-candle match does not suppress a valid two- or one-candle fallback.
+- A technical TRIGGERED state becomes BROKEN after a later bar breaks the original pattern low. This is a technical classification, not evidence of an executed sell.
+- Historical triggers older than the recent chart window no longer obscure fresh unconfirmed reversal observations.
+- Locked support/resistance persists while hidden; a band only becomes broken after two consecutive closes, and a reversed role requires a new volume-supported retest.
+- Added regression tests for false positive patterns, ambiguous daily candles, technical BROKEN, and archived-zone persistence.
+- **Caution:** no broker order handling; daily prices cannot establish intraday order of high/low. CI and a complete manual report validation are required before merging this branch into main.

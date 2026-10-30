@@ -8,7 +8,7 @@
       "score": 61.8,
       "touches": 4,
       "created_at": "2026-10-28",
-      "status": "ACTIVE",
+      "status": "HIDDEN",
       "history": [
         "2026-07-15",
         "2026-08-04",
@@ -25,7 +25,7 @@
       "score": 54.16,
       "touches": 3,
       "created_at": "2026-10-28",
-      "status": "ACTIVE",
+      "status": "HIDDEN",
       "history": [
         "2026-08-04",
         "2026-09-22",
@@ -41,7 +41,7 @@
       "score": 47.21,
       "touches": 3,
       "created_at": "2026-10-28",
-      "status": "ACTIVE",
+      "status": "HIDDEN",
       "history": [
         "2026-08-21",
         "2026-09-08",
@@ -58,7 +58,7 @@
       "score": 71.87,
       "touches": 5,
       "created_at": "2026-10-28",
-      "status": "ACTIVE",
+      "status": "HIDDEN",
       "history": [
         "2026-07-21",
         "2026-09-17",
@@ -76,7 +76,7 @@
       "score": 52.53,
       "touches": 2,
       "created_at": "2026-10-28",
-      "status": "ACTIVE",
+      "status": "HIDDEN",
       "history": [
         "2026-09-08",
         "2026-09-17"
@@ -92,7 +92,7 @@
       "score": 48.9,
       "touches": 2,
       "created_at": "2026-10-28",
-      "status": "ACTIVE",
+      "status": "HIDDEN",
       "history": [
         "2026-08-12",
         "2026-08-17"
@@ -107,7 +107,7 @@
       "score": 48.43,
       "touches": 2,
       "created_at": "2026-10-28",
-      "status": "ACTIVE",
+      "status": "HIDDEN",
       "history": [
         "2026-06-25",
         "2026-08-17"
@@ -123,7 +123,7 @@
       "score": 52.71,
       "touches": 3,
       "created_at": "2026-10-28",
-      "status": "ACTIVE",
+      "status": "HIDDEN",
       "history": [
         "2026-08-27",
         "2026-09-09",
@@ -139,7 +139,7 @@
       "score": 57.14,
       "touches": 3,
       "created_at": "2026-10-28",
-      "status": "ACTIVE",
+      "status": "HIDDEN",
       "history": [
         "2026-09-08",
         "2026-09-23",
@@ -155,7 +155,7 @@
       "score": 45.16,
       "touches": 2,
       "created_at": "2026-10-28",
-      "status": "ACTIVE",
+      "status": "HIDDEN",
       "history": [
         "2026-09-21",
         "2026-10-02"
@@ -170,7 +170,7 @@
       "score": 50.41,
       "touches": 3,
       "created_at": "2026-10-28",
-      "status": "ACTIVE",
+      "status": "HIDDEN",
       "history": [
         "2026-08-13",
         "2026-09-08",
@@ -186,7 +186,7 @@
       "score": 64.85,
       "touches": 6,
       "created_at": "2026-10-28",
-      "status": "ACTIVE",
+      "status": "HIDDEN",
       "history": [
         "2026-06-22",
         "2026-06-25",
@@ -206,7 +206,7 @@
       "score": 49.59,
       "touches": 3,
       "created_at": "2026-10-28",
-      "status": "ACTIVE",
+      "status": "HIDDEN",
       "history": [
         "2026-07-31",
         "2026-08-05",
@@ -222,7 +222,7 @@
       "score": 58.54,
       "touches": 4,
       "created_at": "2026-10-28",
-      "status": "ACTIVE",
+      "status": "HIDDEN",
       "history": [
         "2026-09-08",
         "2026-09-24",
@@ -240,7 +240,7 @@
       "score": 40.1,
       "touches": 2,
       "created_at": "2026-10-28",
-      "status": "ACTIVE",
+      "status": "HIDDEN",
       "history": [
         "2026-08-10",
         "2026-08-17"
@@ -255,7 +255,7 @@
       "score": 40.34,
       "touches": 2,
       "created_at": "2026-10-28",
-      "status": "ACTIVE",
+      "status": "HIDDEN",
       "history": [
         "2026-09-08",
         "2026-09-21"
@@ -270,13 +270,14 @@
       "score": 62.05,
       "touches": 4,
       "created_at": "2026-10-28",
-      "status": "ACTIVE",
+      "status": "WAITING_RETEST",
       "history": [
         "2026-09-03",
         "2026-09-25",
         "2026-10-06",
         "2026-10-09"
-      ]
+      ],
+      "break_date": "2026-10-29"
     }
   },
   "VST": {},
@@ -288,7 +289,7 @@
       "score": 39.29,
       "touches": 2,
       "created_at": "2026-10-28",
-      "status": "ACTIVE",
+      "status": "HIDDEN",
       "history": [
         "2026-08-27",
         "2026-09-23"

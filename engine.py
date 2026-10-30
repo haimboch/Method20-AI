@@ -177,7 +177,10 @@ def chart(d,symbol,path,a,zone=None):
         vax.bar(i,x.volume,color=color,width=.75)
     ax.plot(np.arange(len(d)),d.sma20,color="#e5a522",lw=2.2,label="SMA20")
     signal=a.get("active")
-    if signal and signal["status"] in ("CANDIDATE","READY","TRIGGERED"):
+    fresh_signal=bool(signal and (signal["status"] in ("CANDIDATE","READY") or
+                      (signal["status"]=="TRIGGERED" and
+                       str(signal.get("event_date",""))>=str(d.date.iloc[-8]))))
+    if fresh_signal:
         dates={str(v):i for i,v in enumerate(d.date)}
         i0=dates.get(signal.get("start_date"))
         i1=dates.get(signal.get("signal_date"))
@@ -218,9 +221,8 @@ def chart(d,symbol,path,a,zone=None):
                         bbox={"facecolor":"white","alpha":.85,"edgecolor":"none"})
     # A very old TRIGGERED alert remains in trade history, but must not
     # hide a recent chart observation. This is NOT another tradable setup.
-    old_trigger=bool(signal and signal.get("status")=="TRIGGERED"
-                     and str(signal.get("event_date",""))<str(d.date.iloc[-8]))
-    no_signal=signal is None or old_trigger
+    old_trigger=bool(signal and signal.get("status")=="TRIGGERED" and not fresh_signal)
+    no_signal=signal is None or old_trigger or (signal and signal.get("status")=="BROKEN")
     if no_signal:
         observation=recent_reversal_observation(d,lookback=12)
         if observation:
@@ -233,7 +235,7 @@ def chart(d,symbol,path,a,zone=None):
                     (start-.48,observation["low"]-.04*span),
                     end-start+.96,span*1.08,
                     fill=False,edgecolor="#303030",lw=2,zorder=8))
-                ax.annotate(observation["pattern"]+" (shape only)",
+                ax.annotate(observation["pattern"]+" (unconfirmed observation)",
                             (end,observation["high"]),xytext=(0,13),
                             textcoords="offset points",fontsize=8,ha="center",
                             color="#333333")

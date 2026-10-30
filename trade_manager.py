@@ -33,7 +33,7 @@ def replay(events):
             if p:raise ValueError("Cannot skip an open position")
             if event.get("signal_date"):
                 skipped.add((symbol,event["signal_date"]))
-                closed_signal_dates.setdefault(symbol,set()).add(event["signal_date"])
+                closed_signal_dates.setdefault(symbol,{})[event["signal_date"]]=event["date"]
             history.append(event)
         elif action=="UPDATE_STOP":
             if not p:raise ValueError("No open position to update stop")
@@ -53,7 +53,7 @@ def replay(events):
             if p["quantity"]==0:
                 p["status"]="CLOSED";p["closed_date"]=event["date"]
                 if p.get("signal_date"):
-                    closed_signal_dates.setdefault(symbol,set()).add(p["signal_date"])
+                    closed_signal_dates.setdefault(symbol,{})[p["signal_date"]]=event["date"]
                 history.append(dict(p));del positions[symbol]
             else:p["status"]="PARTIAL"
     return positions,history,closed_signal_dates
@@ -87,7 +87,7 @@ def report_rows(events,market_data):
         row={**p,"last_close":close,"unrealized":unrealized,"risk_to_stop":to_stop}
         rows.append(row)
         # Only check the known session if stop was already in force.
-        if low is not None and day is not None and str(day)>=p["stop_effective_date"] and low<=p["stop"]:
+        if low is not None and day is not None and str(day)>p["stop_effective_date"] and low<=p["stop"]:
             alerts.append({"symbol":symbol,"stop":p["stop"],"low":low,
                            "date":str(day),"quantity":remaining})
     return rows,alerts
@@ -101,6 +101,8 @@ def main():
                       ("stop","TRADE_STOP"),("fee","TRADE_FEE")]:
         value=os.getenv(env,"").strip()
         if value:event[field]=float(value)
+    if action=="SKIP_TRADE" and not event.get("signal_date"):
+        raise ValueError("SKIP_TRADE requires signal_date to release the matching signal")
     if action=="BUY":
         for field in ("quantity","price","stop"):
             if field not in event:raise ValueError("BUY requires "+field)

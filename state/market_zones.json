@@ -1,1 +1,298 @@
-{}
+{
+  "ACHR": {},
+  "AEHR": {
+    "resistance": {
+      "kind": "resistance",
+      "low": 107.8883,
+      "high": 111.5112,
+      "score": 61.8,
+      "touches": 4,
+      "created_at": "2026-10-28",
+      "status": "ACTIVE",
+      "history": [
+        "2026-07-15",
+        "2026-08-04",
+        "2026-09-29",
+        "2026-10-02"
+      ]
+    }
+  },
+  "ALAB": {
+    "resistance": {
+      "kind": "resistance",
+      "low": 366.1248,
+      "high": 379.5952,
+      "score": 54.16,
+      "touches": 3,
+      "created_at": "2026-10-28",
+      "status": "ACTIVE",
+      "history": [
+        "2026-08-04",
+        "2026-09-22",
+        "2026-09-25"
+      ]
+    }
+  },
+  "APLD": {
+    "resistance": {
+      "kind": "resistance",
+      "low": 28.9542,
+      "high": 29.7552,
+      "score": 47.21,
+      "touches": 3,
+      "created_at": "2026-10-28",
+      "status": "ACTIVE",
+      "history": [
+        "2026-08-21",
+        "2026-09-08",
+        "2026-09-22"
+      ]
+    }
+  },
+  "APP": {},
+  "ASTS": {
+    "resistance": {
+      "kind": "resistance",
+      "low": 63.3717,
+      "high": 65.7983,
+      "score": 71.87,
+      "touches": 5,
+      "created_at": "2026-10-28",
+      "status": "ACTIVE",
+      "history": [
+        "2026-07-21",
+        "2026-09-17",
+        "2026-09-22",
+        "2026-09-29",
+        "2026-10-06"
+      ]
+    }
+  },
+  "BE": {
+    "resistance": {
+      "kind": "resistance",
+      "low": 282.2669,
+      "high": 289.5631,
+      "score": 52.53,
+      "touches": 2,
+      "created_at": "2026-10-28",
+      "status": "ACTIVE",
+      "history": [
+        "2026-09-08",
+        "2026-09-17"
+      ]
+    }
+  },
+  "BMNR": {},
+  "CBRS": {
+    "resistance": {
+      "kind": "resistance",
+      "low": 260.2462,
+      "high": 266.4638,
+      "score": 48.9,
+      "touches": 2,
+      "created_at": "2026-10-28",
+      "status": "ACTIVE",
+      "history": [
+        "2026-08-12",
+        "2026-08-17"
+      ]
+    }
+  },
+  "CRDO": {
+    "resistance": {
+      "kind": "resistance",
+      "low": 285.0056,
+      "high": 291.6644,
+      "score": 48.43,
+      "touches": 2,
+      "created_at": "2026-10-28",
+      "status": "ACTIVE",
+      "history": [
+        "2026-06-25",
+        "2026-08-17"
+      ]
+    }
+  },
+  "EOSE": {},
+  "GEV": {
+    "resistance": {
+      "kind": "resistance",
+      "low": 967.374,
+      "high": 987.306,
+      "score": 52.71,
+      "touches": 3,
+      "created_at": "2026-10-28",
+      "status": "ACTIVE",
+      "history": [
+        "2026-08-27",
+        "2026-09-09",
+        "2026-09-17"
+      ]
+    }
+  },
+  "HOOD": {
+    "resistance": {
+      "kind": "resistance",
+      "low": 123.0692,
+      "high": 127.1608,
+      "score": 57.14,
+      "touches": 3,
+      "created_at": "2026-10-28",
+      "status": "ACTIVE",
+      "history": [
+        "2026-09-08",
+        "2026-09-23",
+        "2026-09-30"
+      ]
+    }
+  },
+  "INTC": {
+    "resistance": {
+      "kind": "resistance",
+      "low": 124.3221,
+      "high": 126.4049,
+      "score": 45.16,
+      "touches": 2,
+      "created_at": "2026-10-28",
+      "status": "ACTIVE",
+      "history": [
+        "2026-09-21",
+        "2026-10-02"
+      ]
+    }
+  },
+  "IREN": {
+    "resistance": {
+      "kind": "resistance",
+      "low": 48.9793,
+      "high": 49.5757,
+      "score": 50.41,
+      "touches": 3,
+      "created_at": "2026-10-28",
+      "status": "ACTIVE",
+      "history": [
+        "2026-08-13",
+        "2026-09-08",
+        "2026-09-23"
+      ]
+    }
+  },
+  "LITE": {
+    "resistance": {
+      "kind": "resistance",
+      "low": 868.9735,
+      "high": 928.8764,
+      "score": 64.85,
+      "touches": 6,
+      "created_at": "2026-10-28",
+      "status": "ACTIVE",
+      "history": [
+        "2026-06-22",
+        "2026-06-25",
+        "2026-06-30",
+        "2026-07-23",
+        "2026-08-21",
+        "2026-10-21"
+      ]
+    }
+  },
+  "MRVL": {},
+  "MU": {
+    "resistance": {
+      "kind": "resistance",
+      "low": 924.6045,
+      "high": 934.7255,
+      "score": 49.59,
+      "touches": 3,
+      "created_at": "2026-10-28",
+      "status": "ACTIVE",
+      "history": [
+        "2026-07-31",
+        "2026-08-05",
+        "2026-10-21"
+      ]
+    }
+  },
+  "NBIS": {
+    "resistance": {
+      "kind": "resistance",
+      "low": 247.9312,
+      "high": 256.3588,
+      "score": 58.54,
+      "touches": 4,
+      "created_at": "2026-10-28",
+      "status": "ACTIVE",
+      "history": [
+        "2026-09-08",
+        "2026-09-24",
+        "2026-09-30",
+        "2026-10-06"
+      ]
+    }
+  },
+  "NOW": {},
+  "RKLB": {
+    "resistance": {
+      "kind": "resistance",
+      "low": 85.2399,
+      "high": 87.1401,
+      "score": 40.1,
+      "touches": 2,
+      "created_at": "2026-10-28",
+      "status": "ACTIVE",
+      "history": [
+        "2026-08-10",
+        "2026-08-17"
+      ]
+    }
+  },
+  "SPCX": {
+    "resistance": {
+      "kind": "resistance",
+      "low": 154.3749,
+      "high": 158.7551,
+      "score": 40.34,
+      "touches": 2,
+      "created_at": "2026-10-28",
+      "status": "ACTIVE",
+      "history": [
+        "2026-09-08",
+        "2026-09-21"
+      ]
+    }
+  },
+  "TSLA": {
+    "resistance": {
+      "kind": "resistance",
+      "low": 382.2051,
+      "high": 389.6849,
+      "score": 62.05,
+      "touches": 4,
+      "created_at": "2026-10-28",
+      "status": "ACTIVE",
+      "history": [
+        "2026-09-03",
+        "2026-09-25",
+        "2026-10-06",
+        "2026-10-09"
+      ]
+    }
+  },
+  "VST": {},
+  "WDC": {
+    "resistance": {
+      "kind": "resistance",
+      "low": 473.8322,
+      "high": 481.6777,
+      "score": 39.29,
+      "touches": 2,
+      "created_at": "2026-10-28",
+      "status": "ACTIVE",
+      "history": [
+        "2026-08-27",
+        "2026-09-23"
+      ]
+    }
+  }
+}

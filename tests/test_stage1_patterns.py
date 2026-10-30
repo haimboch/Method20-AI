@@ -46,7 +46,7 @@ class StageOnePatternsTest(unittest.TestCase):
     def test_three_bar_pattern_preferred_to_overlapping_two_bar(self):
         d=self.bars()
         d.loc[107,["open","high","low","close"]]=[110.,111.,97.,98.]
-        d.loc[108,["open","high","low","close"]]=[99.,104.,98.,102.]
+        d.loc[108,["open","high","low","close"]]=[99.,108.,98.,107.]
         d.loc[109,["open","high","low","close"]]=[103.,114.,102.,113.]
         found=annotations(d)
         self.assertIn("THREE_INSIDE_UP",[x["pattern"] for x in found])

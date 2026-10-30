@@ -104,7 +104,7 @@ from report_sections import grouped_results, section_key, signal_for_display, si
 
 from method20_zones import update_book, chosen_zone, risk_reward, falling
 from trade_manager import load as load_trades, replay as replay_trades, report_rows
-PATTERN_LABELS={**PATTERNS,"DOJI":"Doji","HAMMER":"Hammer","BULLISH_REJECTION":"Bullish Rejection"}
+
 
 def visible_bullish_patterns(d):
     """Only annotate confirmed shape formations around/below SMA20."""
@@ -289,7 +289,7 @@ def main():
     portfolio={"rows":portfolio_rows,"alerts":stop_alerts}
     (OUT/"portfolio.json").write_text(json.dumps(portfolio,ensure_ascii=False,indent=2),encoding="utf-8")
     zones_path.parent.mkdir(parents=True,exist_ok=True)
-    zones_path.write_text(json.dumps(zone_books,ensure_ascii=False,indent=2)+"\\n",encoding="utf-8")
+    zones_path.write_text(json.dumps(zone_books,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
     render(results,portfolio)
     errors=[x["symbol"] for x in results if "error" in x]
     if errors:

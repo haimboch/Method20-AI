@@ -102,7 +102,8 @@ from levels import structure, scenario
 from report_format import fmt2, fmt_signed, format_numbers_in_text
 from report_sections import grouped_results, section_key, signal_for_display, signal_explanation
 
-from bullish_patterns import PATTERNS
+from method20_zones import update_book, chosen_zone, risk_reward, falling
+from trade_manager import load as load_trades, replay as replay_trades, report_rows
 PATTERN_LABELS={**PATTERNS,"DOJI":"Doji","HAMMER":"Hammer","BULLISH_REJECTION":"Bullish Rejection"}
 
 def visible_bullish_patterns(d):
@@ -142,57 +143,96 @@ def reversal_for_chart(analysis,view):
     return (index,signal) if index is not None else None
 
 
-def chart(d,symbol,path,a,levels=None):
+def chart(d,symbol,path,a,zone=None):
+    """Price, SMA20, volume and CCI14, plus a single context-dependent overlay."""
     d=d.tail(95).reset_index(drop=True)
-    fig,(ax,vax,cax)=plt.subplots(3,1,figsize=(15,10),sharex=True,gridspec_kw={"height_ratios":[6,1.5,1.8]})
+    fig,(ax,vax,cax)=plt.subplots(3,1,figsize=(15,10),sharex=True,
+                                  gridspec_kw={"height_ratios":[6,1.5,1.8]})
     for i,x in d.iterrows():
         color="#12805c" if x.close>=x.open else "#c44747"
         ax.vlines(i,x.low,x.high,color=color,lw=1)
-        ax.add_patch(Rectangle((i-.33,min(x.open,x.close)),.66,max(abs(x.close-x.open),.001),color=color))
+        ax.add_patch(Rectangle((i-.33,min(x.open,x.close)),.66,
+                               max(abs(x.close-x.open),.001),color=color))
         vax.bar(i,x.volume,color=color,width=.75)
     ax.plot(np.arange(len(d)),d.sma20,color="#e5a522",lw=2.2,label="SMA20")
+    signal=a.get("active")
+    if signal and signal["status"] in ("CANDIDATE","READY","TRIGGERED"):
+        # Draw exactly one rectangle spanning the original pattern candles.
+        dates={str(v):i for i,v in enumerate(d.date)}
+        i0=dates.get(signal["start_date"])
+        i1=dates.get(signal["signal_date"])
+        if i0 is not None and i1 is not None:
+            span=max(signal["high"]-signal["low"],.01)
+            ax.add_patch(Rectangle((i0-.48,signal["low"]-.04*span),
+                i1-i0+.96,span*1.08,fill=False,edgecolor="black",lw=2.5,zorder=9))
+        ax.axhline(signal["high"],color="black",lw=1.8,ls="--",
+                   label="Trigger "+fmt2(signal["high"]))
+    if zone:
+        color="#bf5555" if zone["kind"]=="resistance" else "#16815c"
+        ax.axhspan(zone["low"],zone["high"],color=color,alpha=.18,
+                   label=zone["kind"].title())
     ax.yaxis.set_major_formatter(FormatStrFormatter("%.2f"))
     cax.yaxis.set_major_formatter(FormatStrFormatter("%.2f"))
-    ax.tick_params(axis="both",labelsize=11)
-    vax.tick_params(axis="both",labelsize=10)
-    cax.tick_params(axis="both",labelsize=10)
     ax.set_title(symbol+"  |  1D  |  "+str(d.iloc[-1].date),fontsize=16)
-    ax.legend(loc="upper left")
-    ax.grid(alpha=.17)
-    vax.set_ylabel("VOL")
-    vax.grid(axis="y",alpha=.17)
+    ax.grid(alpha=.17);ax.legend(loc="upper left")
+    vax.set_ylabel("VOL");vax.grid(axis="y",alpha=.17)
     cax.plot(np.arange(len(d)),d.cci,color="#7359b8")
     cax.axhline(-100,color="#c44747",ls="--",lw=.8)
     cax.axhline(100,color="#12805c",ls="--",lw=.8)
-    cax.set_ylabel("CCI14")
+    cax.set_ylabel("CCI14");cax.grid(alpha=.17)
     ticks=list(range(0,len(d),max(1,len(d)//8)))
     cax.set_xticks(ticks,[str(d.date.iloc[i])[5:] for i in ticks],rotation=40)
-    cax.grid(alpha=.17)
-    fig.tight_layout()
-    fig.savefig(path,dpi=175)
-    plt.close(fig)
+    fig.tight_layout();fig.savefig(path,dpi=175);plt.close(fig)
 
-def render(results):
-    """Minimal visual report; preserve priority ordering without commentary."""
+def render(results,portfolio=None):
+    """Minimal chart-first layout; only the selected signal and its risk context."""
+    from report_sections import grouped_results
     ordered=[item for _,_,items in grouped_results(results) for item in items]
-    cards=[]
+    sections=[]
+    portfolio=portfolio or {"rows":[],"alerts":[]}
+    if portfolio["alerts"]:
+        alerts="".join('<p class="alert"><b>בדיקת סטופ: '+html.escape(x["symbol"])
+                       +'</b> | סטופ $'+fmt2(x["stop"])+' | שפל $'+fmt2(x["low"])
+                       +' | '+html.escape(str(x["date"]))+'</p>'
+                       for x in portfolio["alerts"])
+        sections.append('<section><h2>התראות סטופ</h2>'+alerts+'</section>')
+    if portfolio["rows"]:
+        rows="".join('<tr><td>'+html.escape(p["symbol"])+'</td><td>'+fmt2(p["quantity"])
+             +'</td><td>$'+fmt2(p["entry"])+'</td><td>$'+fmt2(p["stop"])
+             +'</td><td>'+("$"+fmt2(p["last_close"]) if p["last_close"] is not None else "—")
+             +'</td><td>$'+fmt2(p["realized"])+'</td><td>'
+             +(("$"+fmt2(p["unrealized"])) if p["unrealized"] is not None else "—")
+             +'</td><td>'+(("$"+fmt2(p["risk_to_stop"])) if p["risk_to_stop"] is not None else "—")
+             +'</td></tr>' for p in portfolio["rows"])
+        sections.append('<section><h2>פוזיציות פתוחות</h2><div class="scroll"><table>'
+                        +'<tr><th>מניה</th><th>כמות</th><th>כניסה</th><th>סטופ</th>'
+                        +'<th>סגירה</th><th>ממומש</th><th>לא ממומש</th><th>לסטופ</th></tr>'
+                        +rows+'</table></div></section>')
     for r in ordered:
         sym=html.escape(r["symbol"])
         if "error" in r:
-            cards.append('<section><h2>'+sym+'</h2><p>נתונים לא זמינים</p></section>')
+            sections.append('<section><h2>'+sym+'</h2><p>נתונים לא זמינים</p></section>')
             continue
-        cards.append('<section><h2>'+sym+'</h2>'
-                     +'<img class="chart" src="charts/'+sym+'.png" '
-                     +'alt="Daily candlesticks SMA20 CCI14 for '+sym+'"/></section>')
+        a=r["analysis"];signal=a.get("active")
+        annotation=""
+        if signal:
+            annotation='<p>'+html.escape(signal["status"])+' | '+html.escape(signal["setup"])
+            annotation+=' | '+html.escape(signal["pattern"])
+            annotation+=' | טריגר $'+fmt2(signal["high"])+' | סטופ טכני $'+fmt2(signal["low"])
+            if r.get("risk_reward") is not None:
+                annotation+=' | יחס סיכוי־סיכון משוער 1:'+fmt2(r["risk_reward"])
+            annotation+='</p>'
+        sections.append('<section><h2>'+sym+'</h2>'+annotation
+                        +'<img src="charts/'+sym+'.png" alt="1D chart SMA20 volume CCI14"/></section>')
     page=('<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8">'
           +'<meta name="viewport" content="width=device-width,initial-scale=1">'
-          +'<title>METHOD 20</title><style>'
-          +'body{font-family:Arial,sans-serif;background:#f3f5f9;color:#172331;margin:0;padding:16px}'
-          +'main{max-width:1350px;margin:auto}'
+          +'<title>METHOD 20</title><style>body{font-family:Arial,sans-serif;background:#f3f5f9;'
+          +'color:#172331;margin:0;padding:16px}main{max-width:1350px;margin:auto}'
           +'section{background:#fff;padding:16px;margin:16px 0;border-radius:14px}'
-          +'img{width:100%;height:auto;display:block}'
-          +'</style></head><body><main><h1>METHOD 20</h1>'
-          +''.join(cards)+'</main></body></html>')
+          +'img{width:100%;height:auto;display:block}.scroll{overflow:auto}'
+          +'table{width:100%;border-collapse:collapse}td,th{padding:8px;border-bottom:1px solid #ddd}'
+          +'.alert{padding:10px;background:#fff3f1;border-radius:8px}</style></head>'
+          +'<body><main><h1>METHOD 20</h1>'+''.join(sections)+'</main></body></html>')
     (OUT/"report.html").write_text(page,encoding="utf-8")
 
 def main():

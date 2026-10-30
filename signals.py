@@ -1,143 +1,133 @@
-"""METHOD 20 deterministic signals (prototype). No brokerage actions."""
+"""METHOD 20 daily long-only candidate and confirmed setup lifecycle."""
 import math
 import pandas as pd
+from patterns_method20 import detect_at
 
-def candle_pattern(d, i):
-    """Return candlestick label or None. Doji alone is neutral, not a LONG reversal."""
-    x = d.iloc[i]
-    o, h, l, c = (float(x[k]) for k in ("open", "high", "low", "close"))
-    rng = h-l
-    if rng <= 0: return None
-    body = abs(c-o)
-    top = h-max(o,c)
-    bottom = min(o,c)-l
-    green = c>o
-    if i>0:
-        p=d.iloc[i-1]
-        if (green and p.close<p.open and o<=p.close and c>=p.open
-                and body>0 and abs(p.close-p.open)>0):
-            return "BULLISH_ENGULFING"
-    if bottom>=2*max(body, rng*0.03) and top<=max(body,rng*0.20) and min(o,c)>l:
-        return "HAMMER"
-    if green and (c-l)/rng>=0.65 and body/rng>=0.25:
-        return "BULLISH_REJECTION"
-    return None
-
-def sma20_context(d,i):
-    """Below SMA20 or testing it as support; no marks far above the average."""
-    if i<0 or i>=len(d): return False
-    x=d.iloc[i]
-    if pd.isna(x.sma20) or x.sma20<=0: return False
-    avg=float(x.sma20)
-    close=float(x.close)
-    low=float(x.low)
-    return close<avg or (low<=avg*1.005 and avg*.98<=close<=avg*1.025)
-
-def visual_reversal(d,i):
-    """Single candle rejection/hammer/doji or completed 2-3 bullish formation."""
-    from bullish_patterns import detect
-    if not sma20_context(d,i): return None
-    formations=detect(d.iloc[:i+1],last_n=3)
-    match=next((p for p in reversed(formations) if p["end"]==i),None)
-    if match: return match["pattern"],match["start"],i
-    x=d.iloc[i]
-    rng=float(x.high-x.low)
-    if rng<=0: return None
-    body=abs(float(x.close-x.open))
-    if body/rng<=.10: return "DOJI",i,i
-    shape=candle_pattern(d,i)
-    if shape in ("HAMMER","BULLISH_REJECTION"):
-        return shape,i,i
-    return None
-
-def cci_upturn(d, i):
-    if i<2: return False
+def cci_upturn(d,i):
+    if i<2:return False
     values=[d.iloc[j].cci for j in (i-2,i-1,i)]
     return all(pd.notna(v) for v in values) and values[2]>values[1] and values[1]<=values[0]
 
-def classify(d,i):
-    """A: CCI was <-100 in last five sessions; B: no oversold requirement.
-    Volume must be higher than previous day OR the previous 20-day average.
-    These parameter thresholds remain provisional until strategy validation.
-    """
-    if i<21: return None
-    cur,prev=d.iloc[i],d.iloc[i-1]
-    required=(cur.sma20,cur.cci,prev.cci,cur.volume,prev.volume,cur.vol20)
-    if any(pd.isna(v) for v in required): return None
-    reversal=visual_reversal(d,i)
-    if not reversal or not cci_upturn(d,i): return None
-    pattern=reversal[0]
-    # Today's volume does not contribute to the threshold, avoiding self-reference.
-    avg_prior_volume=d.volume.iloc[i-20:i].mean()
-    volume_ok=bool(cur.volume>prev.volume or cur.volume>avg_prior_volume)
-    if not volume_ok: return None
-    recent_down=i>=10 and d.close.iloc[i-5]<d.close.iloc[i-10]
-    below=cur.close<cur.sma20
-    near=abs(cur.low/cur.sma20-1)<=0.025 and cur.close>=cur.sma20*0.98
-    oversold=bool((d.cci.iloc[max(0,i-5):i+1]<-100).any())
-    if below and recent_down and oversold:
-        setup="A: MEAN_REVERSION"
-    elif near:
-        setup="B: SMA20_BOUNCE"
-    else: return None
-    return {"setup":setup,"pattern":pattern,"signal_date":str(cur.date),
-            "high":float(d.high.iloc[reversal[1]:i+1].max()),
-            "low":float(d.low.iloc[reversal[1]:i+1].min()),"status":"READY",
-            "cci14":float(cur.cci),"volume_ratio":float(cur.volume/avg_prior_volume)}
+def candle_pattern(d,i):
+    p=detect_at(d,i)
+    return p["pattern"] if p and p["end"]==p["start"] else None
 
-def transition(signal, day, date=None):
-    """Only a subsequent session may cross a reversal boundary."""
-    if signal is None: return None
-    state=signal.get("status")
-    if state not in ("READY","TRIGGERED"): return signal
-    if str(date if date is not None else day.date)<=str(signal["signal_date"]):
-        return signal
-    if state=="TRIGGERED":
-        if float(day.low)<float(signal["low"]):
-            updated=dict(signal)
-            updated["status"]="BROKEN"
-            updated["event_date"]=str(date if date is not None else day.date)
-            updated["broken_date"]=updated["event_date"]
-            return updated
-        return signal
-    high_cross=bool(day.high>signal["high"])
-    low_cross=bool(day.low<signal["low"])
-    if not (high_cross or low_cross): return signal
+def sma20_context(d,i):
+    if i<10 or pd.isna(d.iloc[i].sma20):return False
+    return bool(d.iloc[i].close<d.iloc[i].sma20 or
+                (d.iloc[i].low<=d.iloc[i].sma20*1.02 and
+                 d.iloc[i].close>=d.iloc[i].sma20*.98))
+
+def setup_context(d,i):
+    if i<25:return None
+    x=d.iloc[i]
+    sma=float(x.sma20)
+    if not math.isfinite(sma) or sma<=0:return None
+    down=bool(d.close.iloc[i-5]<d.close.iloc[i-10] or
+              d.close.iloc[i-1]<d.close.iloc[i-5])
+    if x.close<sma and down:
+        return "A: MEAN_REVERSION"
+    # Recent pullback following an established upward SMA20 slope.
+    prior_up=bool(d.sma20.iloc[i-5]>d.sma20.iloc[i-10])
+    pullback=bool(d.close.iloc[i-1]<d.close.iloc[i-5])
+    near=bool(x.low<=sma*1.02 and x.close>=sma*.98)
+    if prior_up and pullback and near:
+        return "B: SMA20_BOUNCE"
+    return None
+
+def visual_reversal(d,i):
+    if not setup_context(d,i):return None
+    p=detect_at(d,i)
+    return (p["pattern"],p["start"],i) if p else None
+
+def candidate(d,i):
+    context=setup_context(d,i)
+    if not context:return None
+    shape=detect_at(d,i)
+    if not shape:return None
+    if context.startswith("A") and not bool((d.cci.iloc[i-5:i+1]<-100).any()):
+        # Oversold is a confirmation rule, not a condition for drawing a candidate.
+        pass
+    return {"setup":context,"pattern":shape["pattern"],
+            "signal_date":shape["signal_date"],"signal_index":i,
+            "start_date":str(d.iloc[shape["start"]].date),
+            "high":shape["high"],"low":shape["low"],
+            "status":"CANDIDATE","confirmation_date":None}
+
+def confirmation(d,i,signal):
+    if i-signal["signal_index"]>2:return False
+    if not cci_upturn(d,i):return False
+    x=d.iloc[i]
+    avg=d.volume.iloc[i-20:i].mean()
+    if pd.isna(avg) or avg<=0:return False
+    volume_ok=bool(x.volume>d.volume.iloc[i-1] or x.volume>avg)
+    if not volume_ok:return False
+    if signal["setup"].startswith("A"):
+        if not bool((d.cci.iloc[max(0,signal["signal_index"]-5):i+1]<-100).any()):
+            return False
+    return True
+
+def classify(d,i):
+    s=candidate(d,i)
+    if s and confirmation(d,i,s):
+        s["status"]="READY";s["confirmation_date"]=str(d.iloc[i].date)
+        return s
+    return None
+
+def transition(signal,day,date=None):
+    """Daily OHLC technical boundaries; execution events remain separate."""
+    if signal is None:return None
+    status=signal["status"]
+    day_date=str(date if date is not None else day.date)
+    if day_date<=signal["signal_date"]:return signal
+    if status not in ("CANDIDATE","READY","TRIGGERED"):return signal
     updated=dict(signal)
-    updated["status"]=("AMBIGUOUS" if high_cross and low_cross
-                       else "TRIGGERED" if high_cross else "INVALIDATED")
-    updated["event_date"]=str(date if date is not None else day.date)
+    upper=bool(day.high>signal["high"])
+    lower=bool(day.low<signal["low"])
+    if status=="TRIGGERED":
+        if lower:updated["technical_stop_touched"]=day_date
+        return updated
+    if upper or lower:
+        updated["status"]=("AMBIGUOUS" if upper and lower else
+                           "UNCONFIRMED_BREAKOUT" if upper and status=="CANDIDATE" else
+                           "TRIGGERED" if upper else "INVALIDATED")
+        updated["event_date"]=day_date
     return updated
 
-def analyze(d):
-    if len(d)<22: raise ValueError("Not enough daily bars for analysis")
-    active=None
-    last_event=None
-    # Warm-up: enough history for CCI, SMA20 and weekly trend.
-    for i in range(21,len(d)):
-        day=d.iloc[i]
-        if last_event and last_event.get("status")=="TRIGGERED":
-            last_event=transition(last_event,day)
+def analyze(d,closed_signal_dates=()):
+    if len(d)<26:raise ValueError("Not enough daily bars for METHOD20")
+    closed_dates=set(map(str,closed_signal_dates))
+    active=None;last_event=None
+    for i in range(25,len(d)):
+        day=d.iloc[i];day_date=str(day.date)
+        if active and active["signal_date"] in closed_dates:
+            last_event=dict(active,status="SKIPPED_OR_CLOSED",event_date=day_date)
+            active=None
             continue
         if active:
-            updated=transition(active,day)
-            if updated["status"]!="READY":
-                last_event=updated
-                active=None
-            else:
-                active=updated
+            active=transition(active,day)
+            if active["status"]=="CANDIDATE":
+                if confirmation(d,i,active):
+                    active=dict(active,status="READY",confirmation_date=day_date)
+                elif i-active["signal_index"]>=2:
+                    active=dict(active,status="EXPIRED",event_date=day_date)
+            if active["status"] not in ("CANDIDATE","READY","TRIGGERED"):
+                last_event=active;active=None
             continue
-        signal=classify(d,i)
-        if signal: active=signal
+        new=candidate(d,i)
+        if new:
+            if confirmation(d,i,new):
+                new["status"]="READY";new["confirmation_date"]=day_date
+            active=new
     x=d.iloc[-1]
-    if active: status="READY"
-    elif last_event and (last_event.get("status")=="TRIGGERED"
-                         or last_event.get("event_date")==str(x.date)):
-        status=last_event["status"]
-    else: status="NO ACTIVE SETUP"
-    def num(v): return float(v) if pd.notna(v) and math.isfinite(float(v)) else None
-    return {"symbol_date":str(x.date),"close":num(x.close),"sma20":num(x.sma20),
-            "cci14":num(x.cci),"volume_ratio":num(x.volume/x.vol20),
-            "change_5d_pct":num((x.close/d.close.iloc[-6]-1)*100),
-            "change_21d_pct":num((x.close/d.close.iloc[-22]-1)*100),
+    status=active["status"] if active else (
+        last_event["status"] if last_event and last_event.get("event_date")==str(x.date)
+        else "NO ACTIVE SETUP")
+    def number(v):
+        return float(v) if pd.notna(v) and math.isfinite(float(v)) else None
+    return {"symbol_date":str(x.date),"close":number(x.close),
+            "sma20":number(x.sma20),"cci14":number(x.cci),
+            "volume_ratio":number(x.volume/x.vol20),
+            "change_5d_pct":number((x.close/d.close.iloc[-6]-1)*100),
+            "change_21d_pct":number((x.close/d.close.iloc[-22]-1)*100),
             "status":status,"active":active,"last_event":last_event}

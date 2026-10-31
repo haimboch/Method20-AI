@@ -1,6 +1,6 @@
-"""METHOD20 stage 1: purely geometric candle annotations.
+"""METHOD20 stage 1 shapes with stage 2 SMA20 location filter.
 
-No trend, SMA20 position, CCI, entry, stop, trading status or zones.
+No prior-trend, CCI, entry, stop, trading status or zones.
 One-candle signals: only the final bar, with volume exceeding the mean
 volume of the preceding 20 bars. Two/three-candle bullish patterns:
 completed in the last five bars, without a volume filter.
@@ -70,6 +70,26 @@ def _complex_at(d,i):
     return matches
 
 
+def _valid_sma20_location(d,i):
+    """Filter on the COMPLETION candle only, using that day's SMA20.
+
+    A: close < SMA20.
+    B: SMA20 <= low <= 1.02 * SMA20.
+    This deliberately excludes a low below SMA20 when close is above SMA20,
+    as agreed for this layer.
+    """
+    x=d.iloc[i]
+    try:
+        sma=float(x.sma20)
+        low=float(x.low)
+        close=float(x.close)
+    except (AttributeError,TypeError,ValueError):
+        return False
+    if not all(math.isfinite(v) for v in (sma,low,close)) or sma<=0:
+        return False
+    return close<sma or sma<=low<=sma*1.02
+
+
 def annotations(d):
     """Return nonoverlapping pattern spans in *visible* bar coordinates.
 
@@ -82,12 +102,15 @@ def annotations(d):
     last=len(view)-1
     choices=[]
     for i in range(max(0,last-4),last+1):
+        if not _valid_sma20_location(view,i):
+            continue
         for name,start in _complex_at(view,i):
             choices.append({"pattern":name,"start":start,"end":i,
                             "kind":"COMPLEX"})
     v=float(view.volume.iloc[-1])
     previous20=float(view.volume.iloc[-21:-1].mean())
-    if math.isfinite(v) and math.isfinite(previous20) and v>previous20:
+    if (_valid_sma20_location(view,last) and math.isfinite(v)
+        and math.isfinite(previous20) and v>previous20):
         name=_single(view,last)
         if name:
             choices.append({"pattern":name,"start":last,"end":last,

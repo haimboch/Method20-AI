@@ -7,7 +7,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 from matplotlib.ticker import FormatStrFormatter
-from stage1_patterns import annotations
+from stage1_patterns import annotations, entry_trigger
 
 ROOT=Path(__file__).resolve().parent
 OUT=ROOT/"output"
@@ -131,6 +131,16 @@ def chart(d,symbol,path,a=None,zone=None):
                     xytext=(0,12),textcoords="offset points",
                     ha="center",va="bottom",fontsize=8,fontweight="bold",
                     color="#171717",zorder=10)
+        # Stage 3: price-only trigger, from the completion candle to
+        # the right edge of the chart. No breakout or trade-state tracking.
+        trigger=entry_trigger(view,mark)
+        ax.hlines(trigger,last,94.45,color="#171717",linewidth=1.6,
+                  linestyles="--",zorder=8)
+        ax.annotate(f"ENTRY ${trigger:.2f}",(94.45,trigger),
+                    xytext=(0,4),textcoords="offset points",ha="right",
+                    va="bottom",fontsize=9,color="#171717",zorder=10,
+                    bbox={"facecolor":"white","alpha":0.78,"edgecolor":"none",
+                          "pad":1})
     ax.margins(y=.16)
     ax.yaxis.set_major_formatter(FormatStrFormatter("%.2f"))
     ax.set_title(symbol+" | 1D | "+str(view.iloc[-1].date),fontsize=16)
@@ -198,6 +208,8 @@ def main():
                                  ", got "+str(d.iloc[-1].date))
             chart(d,symbol,OUT/"charts"/f"{symbol}.png")
             marks=annotations(d)
+            if marks:
+                marks[0]["entry_trigger"]=entry_trigger(d,marks[0])
             results.append({"symbol":symbol,"session_date":str(d.iloc[-1].date),
                             "candles":95,"annotations":marks})
             print(f"{symbol}: {d.iloc[-1].date} 95 bars",flush=True)
@@ -210,7 +222,7 @@ def main():
     errors=[r["symbol"] for r in results if "error" in r]
     session_date=expected or next((r["session_date"] for r in results
                                    if "session_date" in r),"")
-    metadata={"report_type":"CHART_WITH_STAGE2_SMA20_FILTER","candles_per_chart":95,
+    metadata={"report_type":"CHART_WITH_STAGE3_ENTRY_LEVEL","candles_per_chart":95,
               "session_date":session_date,"symbols":symbols,
               "expected_ticker_count":len(symbols),
               "analyzed_ticker_count":len(symbols)-len(errors),

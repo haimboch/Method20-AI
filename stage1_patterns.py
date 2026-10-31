@@ -91,10 +91,10 @@ def _valid_sma20_location(d,i):
 
 
 def annotations(d):
-    """Return nonoverlapping pattern spans in *visible* bar coordinates.
+    """Return at most one latest valid pattern in *visible* bar coordinates.
 
     The last 5 bars specify pattern completion, not necessarily its start.
-    Larger patterns win overlap ties. No setup/entry verdict is implied.
+    The newest completion bar wins; a longer pattern breaks same-day ties.\n    No setup/entry verdict is implied.
     """
     if len(d)<25:
         return []
@@ -115,14 +115,11 @@ def annotations(d):
         if name:
             choices.append({"pattern":name,"start":last,"end":last,
                             "kind":"SINGLE","volume_ma20":previous20})
-    # Give precedence to three-bar, then two-bar, then single-bar.
-    # Use most recent end for equal length and stable names for exact ties.
-    choices.sort(key=lambda p:(-(p["end"]-p["start"]+1),-p["end"],p["pattern"]))
-    taken=set()
-    selected=[]
-    for p in choices:
-        bars=set(range(p["start"],p["end"]+1))
-        if taken.isdisjoint(bars):
-            selected.append(p)
-            taken.update(bars)
-    return sorted(selected,key=lambda p:(p["start"],p["end"]))
+    # Show ONE mark: newest completed valid pattern wins, regardless
+    # of whether it is a single candle or a multi-candle formation.
+    # If several patterns end on the same bar, prefer the longest.
+    if not choices:
+        return []
+    newest=max(choices,key=lambda p:(p["end"],p["end"]-p["start"]+1,
+                                     p["pattern"]))
+    return [newest]

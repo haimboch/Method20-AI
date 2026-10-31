@@ -79,6 +79,40 @@ class StageOnePatternsTest(unittest.TestCase):
         d.loc[103,["open","high","low","close"]]=[100.,111.,99.,110.]
         self.assertNotIn("BULLISH_ENGULFING",[x["pattern"] for x in annotations(d)])
 
+    def test_newer_single_doji_replaces_older_complex_pattern(self):
+        # BE-style example: an older valid engulfing and a newer last-day
+        # high-volume Doji. Only the Doji is drawn.
+        d=self.bars()
+        d.loc[106,["open","high","low","close"]]=[108.,109.,100.,101.]
+        d.loc[107,["open","high","low","close"]]=[100.,111.,99.,110.]
+        d.loc[109,["open","high","low","close","volume"]]=[
+            100.,104.,96.,100.,120.]
+        marks=annotations(d)
+        self.assertEqual(len(marks),1)
+        self.assertEqual(marks[0]["pattern"],"REGULAR_DOJI")
+        self.assertEqual(marks[0]["end"],94)
+
+    def test_newest_complex_replaces_older_nonoverlapping_complex(self):
+        d=self.bars()
+        d.loc[104,["open","high","low","close"]]=[108.,109.,100.,101.]
+        d.loc[105,["open","high","low","close"]]=[100.,111.,99.,110.]
+        d.loc[108,["open","high","low","close"]]=[108.,109.,100.,101.]
+        d.loc[109,["open","high","low","close"]]=[100.,111.,99.,110.]
+        marks=annotations(d)
+        self.assertEqual(len(marks),1)
+        self.assertEqual(marks[0]["pattern"],"BULLISH_ENGULFING")
+        self.assertEqual(marks[0]["end"],94)
+
+    def test_invalid_newest_pattern_does_not_hide_older_valid_one(self):
+        d=self.bars()
+        d.loc[106,["open","high","low","close"]]=[108.,109.,100.,101.]
+        d.loc[107,["open","high","low","close"]]=[100.,111.,99.,110.]
+        d.loc[109,["open","high","low","close","volume","sma20"]]=[
+            105.,106.,103.,105.,120.,100.]
+        marks=annotations(d)
+        self.assertEqual(len(marks),1)
+        self.assertEqual(marks[0]["end"],92)
+
     def test_three_bar_pattern_preferred_to_overlapping_two_bar(self):
         d=self.bars()
         d.loc[107,["open","high","low","close"]]=[110.,111.,97.,98.]

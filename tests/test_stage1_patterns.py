@@ -92,6 +92,16 @@ class StageOnePatternsTest(unittest.TestCase):
         self.assertEqual(marks[0]["pattern"],"REGULAR_DOJI")
         self.assertEqual(marks[0]["end"],94)
 
+    def test_equal_length_same_day_prefers_engulfing_over_tweezer(self):
+        # Both forms match on the final day; spelling must not decide.
+        d=self.bars()
+        d.loc[108,["open","high","low","close"]]=[108.,109.,100.,101.]
+        d.loc[109,["open","high","low","close"]]=[100.,111.,99.,110.]
+        marks=annotations(d)
+        self.assertEqual(len(marks),1)
+        self.assertEqual(marks[0]["pattern"],"BULLISH_ENGULFING")
+        self.assertEqual((marks[0]["start"],marks[0]["end"]),(93,94))
+
     def test_newest_complex_replaces_older_nonoverlapping_complex(self):
         d=self.bars()
         d.loc[104,["open","high","low","close"]]=[108.,109.,100.,101.]

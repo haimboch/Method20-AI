@@ -7,8 +7,44 @@ class StageOnePatternsTest(unittest.TestCase):
     def bars(self):
         dates=pd.date_range("2026-06-01",periods=110,freq="B")
         return pd.DataFrame([{"date":str(t.date()),"open":100.,
-            "high":102.,"low":98.,"close":101.,"volume":100.}
+            "high":102.,"low":98.,"close":101.,"volume":100.,"sma20":115.}
             for t in dates])
+
+    def test_stage2_close_below_sma20_is_accepted(self):
+        d=self.bars()
+        d.loc[109,["open","high","low","close","volume","sma20"]]=[
+            102.,105.,94.,104.,101.,105.]
+        self.assertIn("HAMMER",[p["pattern"] for p in annotations(d)])
+
+    def test_stage2_low_between_sma20_and_102_percent_is_accepted(self):
+        d=self.bars()
+        d.loc[109,["open","high","low","close","volume","sma20"]]=[
+            105.,106.,101.,105.,120.,100.]
+        self.assertIn("REGULAR_DOJI",[p["pattern"] for p in annotations(d)])
+        d.loc[109,"low"]=102.0
+        self.assertIn("REGULAR_DOJI",[p["pattern"] for p in annotations(d)])
+
+    def test_stage2_rejects_above_two_percent_or_dip_below_sma_without_close_below(self):
+        d=self.bars()
+        d.loc[109,["open","high","low","close","volume","sma20"]]=[
+            105.,106.,103.,105.,120.,100.]
+        self.assertFalse(annotations(d))
+        d.loc[109,["open","high","low","close"]]=[105.,106.,99.,105.]
+        self.assertFalse(annotations(d))
+
+    def test_stage2_filters_complex_pattern_on_completion_candle_only(self):
+        d=self.bars()
+        d.loc[108,["open","high","low","close","sma20"]]=[108.,109.,100.,101.,100.]
+        d.loc[109,["open","high","low","close","sma20"]]=[100.,111.,99.,110.,100.]
+        self.assertNotIn("BULLISH_ENGULFING",[p["pattern"] for p in annotations(d)])
+        d.loc[109,"sma20"]=115.
+        self.assertIn("BULLISH_ENGULFING",[p["pattern"] for p in annotations(d)])
+
+    def test_stage2_missing_sma20_never_marks_pattern(self):
+        d=self.bars()
+        d.loc[109,["open","high","low","close","volume","sma20"]]=[
+            105.,106.,101.,105.,120.,float("nan")]
+        self.assertFalse(annotations(d))
 
     def test_last_bar_green_and_red_hammer_need_above_previous_20_volume(self):
         for o,c in ((102.,104.),(104.,102.)):

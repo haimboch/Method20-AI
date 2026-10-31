@@ -210,7 +210,7 @@ def main():
     errors=[r["symbol"] for r in results if "error" in r]
     session_date=expected or next((r["session_date"] for r in results
                                    if "session_date" in r),"")
-    metadata={"report_type":"CHART_WITH_STAGE1_MARKS","candles_per_chart":95,
+    metadata={"report_type":"CHART_WITH_STAGE2_SMA20_FILTER","candles_per_chart":95,
               "session_date":session_date,"symbols":symbols,
               "expected_ticker_count":len(symbols),
               "analyzed_ticker_count":len(symbols)-len(errors),

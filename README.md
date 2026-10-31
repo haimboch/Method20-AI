@@ -1,3 +1,9 @@
+# METHOD 20 | STAGE 3: ENTRY LEVEL DISPLAY (2026-10-31)
+
+For the single latest valid visual pattern from layers 1 and 2, draw a dashed black ENTRY line at the **High of its completion candle only**, beginning at that candle and extending to the right chart edge. This is an informational price level; no breakout check, order execution, position state, stop or CCI confirmation is added. The chart still shows only one annotated pattern. New email artifacts require `CHART_WITH_STAGE3_ENTRY_LEVEL`.
+
+---
+
 # METHOD 20 | STAGE 2 SMA20 LOCATION (2026-10-31)
 
 **Display priority (31 Oct 2026):** show at most ONE annotation per ticker. Among patterns that satisfy Stage 1 shape/volume rules and Stage 2 SMA20 location rules, select the pattern whose completion candle is the newest. When multiple patterns end on the same candle, prefer the longest (three candles, then two, then one). A filtered-out later pattern must not suppress an older valid pattern within the five-candle window.

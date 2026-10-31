@@ -90,6 +90,23 @@ def _valid_sma20_location(d,i):
     return close<sma or sma<=low<=sma*1.02
 
 
+
+def entry_trigger(d,mark):
+    """Stage 3 display-only level: HIGH of the completion candle.
+
+    Uses visible chart coordinates and does not infer order execution,
+    a later breakout or a trading state.
+    """
+    view=d.tail(95).reset_index(drop=True)
+    end=int(mark["end"])
+    if end<0 or end>=len(view):
+        raise ValueError("Completion candle is outside visible chart")
+    high=float(view.high.iloc[end])
+    if not math.isfinite(high):
+        raise ValueError("Invalid completion candle high")
+    return high
+
+
 def annotations(d):
     """Return at most one latest valid pattern in *visible* bar coordinates.
 

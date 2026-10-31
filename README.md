@@ -1,3 +1,9 @@
+# METHOD 20 | STAGE 2 SMA20 LOCATION (2026-10-31)
+
+Stage 1 candlestick shapes and volume rules remain unchanged. Stage 2 draws a mark only if the completed pattern's **last candle** either (A) closes below its daily SMA20 or (B) has Low between SMA20 and 1.02×SMA20 inclusive. Prior trend, CCI, entry triggers, stops and zones are not used. Outdated report artifacts are excluded through the report_type field.
+
+---
+
 # METHOD 20 | STAGE 1 VISUAL PATTERNS (2026-10-30)
 
 **Current active behavior:** Daily email charts for the watchlist only. Each chart has exactly 95 daily Japanese candlesticks, SMA20, daily Volume and CCI(14). Stage 1 overlays black boxes for the final bar when it is Hammer / Regular Doji / Dragonfly Doji with volume above the previous 20-session average, and seven bullish 2- or 3-candle patterns completed in the last five daily candles without any volume, prior-trend or SMA filter. More complex patterns take precedence when they overlap. There are NO trading triggers, support/resistance zones, portfolio tables or stop warnings.

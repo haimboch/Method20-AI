@@ -1,5 +1,7 @@
 # METHOD 20 | STAGE 2 SMA20 LOCATION (2026-10-31)
 
+**Display priority (31 Oct 2026):** show at most ONE annotation per ticker. Among patterns that satisfy Stage 1 shape/volume rules and Stage 2 SMA20 location rules, select the pattern whose completion candle is the newest. When multiple patterns end on the same candle, prefer the longest (three candles, then two, then one). A filtered-out later pattern must not suppress an older valid pattern within the five-candle window.
+
 Stage 1 candlestick shapes and volume rules remain unchanged. Stage 2 draws a mark only if the completed pattern's **last candle** either (A) closes below its daily SMA20 or (B) has Low between SMA20 and 1.02×SMA20 inclusive. Prior trend, CCI, entry triggers, stops and zones are not used. Outdated report artifacts are excluded through the report_type field.
 
 ---

@@ -1,7 +1,7 @@
 """Stage 1 visual marking, without market-context or trade conditions."""
 import unittest
 import pandas as pd
-from stage1_patterns import annotations
+from stage1_patterns import annotations, entry_trigger
 
 class StageOnePatternsTest(unittest.TestCase):
     def bars(self):
@@ -9,6 +9,26 @@ class StageOnePatternsTest(unittest.TestCase):
         return pd.DataFrame([{"date":str(t.date()),"open":100.,
             "high":102.,"low":98.,"close":101.,"volume":100.,"sma20":115.}
             for t in dates])
+
+    def test_entry_trigger_uses_final_candle_high_not_entire_pattern_high(self):
+        d=self.bars()
+        # Bullish Harami: first candle's high exceeds second candle's high.
+        d.loc[108,["open","high","low","close"]]=[108.,115.,98.,100.]
+        d.loc[109,["open","high","low","close","volume"]]=[
+            101.,107.,100.,106.,100.]
+        marks=annotations(d)
+        self.assertEqual(len(marks),1)
+        self.assertEqual(marks[0]["pattern"],"BULLISH_HARAMI")
+        self.assertEqual(entry_trigger(d,marks[0]),107.)
+        self.assertNotEqual(entry_trigger(d,marks[0]),115.)
+
+    def test_entry_trigger_for_single_final_doji(self):
+        d=self.bars()
+        d.loc[109,["open","high","low","close","volume"]]=[
+            100.,104.,96.,100.,120.]
+        mark=annotations(d)[0]
+        self.assertEqual(mark["pattern"],"REGULAR_DOJI")
+        self.assertEqual(entry_trigger(d,mark),104.)
 
     def test_stage2_close_below_sma20_is_accepted(self):
         d=self.bars()

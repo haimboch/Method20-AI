@@ -120,6 +120,12 @@ def annotations(d):
     # If several patterns end on the same bar, prefer the longest.
     if not choices:
         return []
+    # Same-end, same-length ties must use pattern specificity rather than
+    # alphabetical ordering. Engulfing takes precedence over a simultaneous
+    # Tweezer Bottom, which describes only the matched lows.
+    priority=("THREE_INSIDE_UP","THREE_OUTSIDE_UP","MORNING_STAR",
+              "BULLISH_ENGULFING","BULLISH_HARAMI","PIERCING_LINE",
+              "TWEEZER_BOTTOM","HAMMER","DRAGONFLY_DOJI","REGULAR_DOJI")
     newest=max(choices,key=lambda p:(p["end"],p["end"]-p["start"]+1,
-                                     p["pattern"]))
+                                     -priority.index(p["pattern"])))
     return [newest]

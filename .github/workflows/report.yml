@@ -22,6 +22,8 @@ concurrency:
 jobs:
   report:
     runs-on: ubuntu-latest
+    outputs:
+      should_publish: ${{ steps.guard.outputs.should_run }}
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
@@ -55,6 +57,7 @@ jobs:
 
   publish_dashboard:
     needs: report
+    if: needs.report.outputs.should_publish == 'true'
     runs-on: ubuntu-latest
     environment:
       name: github-pages

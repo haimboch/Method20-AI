@@ -1,3 +1,23 @@
+# METHOD 20 | Stage 1 interactive dashboard (1 Nov 2026)
+
+The active signal logic remains **Stage 1 only**: 95 daily candles, SMA20, Volume, CCI14 and the original geometric pattern annotations. No SMA20 position filter, no entry line, no trading statuses.
+
+## Open on demand, rather than receiving daily emails
+
+The EOD job still refreshes the stock data after trading sessions and creates a browsable HTML dashboard (output/index.html and output/report.html) and chart images. The dashboard lets you switch tickers, search, filter annotated/quiet charts and inspect last trading-session dates. Opening the page does NOT perform real-time market data requests. Automatic morning emails are disabled, but the manual email workflow remains available.
+
+**One-time public hosting setup:** In GitHub > Settings > Pages > Build and deployment, choose **GitHub Actions**. Then manually run **METHOD 20 EOD Report**, or let the next scheduled successful run deploy. The expected Pages address is `https://haimboch.github.io/Method20-AI/` *once enabled and successfully deployed*. A GitHub Pages site may be **public even for a private repository**. The published files contain charts/tickers and dates, but no Massive API secret. If you don't want a public site, do not enable Pages; use local HTML or authenticated GitHub artifacts.
+
+## Quick check, without running a workflow
+
+Install `pip install -r requirements.txt`, then use saved daily OHLCV data:
+```bash
+python quick_test.py --ticker BE --csv data/BE.csv --check-tests
+```
+The CSV needs columns `date,open,high,low,close,volume` and at least 95 completed trading bars. Open `quick_test_output/index.html` in a browser. It displays **the exact Stage 1 chart renderer**, with no GitHub workflow, email, or market API call. Alternatively, using a locally configured `MASSIVE_API_KEY`, run `python quick_test.py --ticker BE --fetch` to retrieve actual prices once. Never put the API key into HTML or public files.
+
+--- 
+
 # METHOD 20 | STAGE 1 VISUAL PATTERNS (2026-10-30)
 
 **Current active behavior:** Daily email charts for the watchlist only. Each chart has exactly 95 daily Japanese candlesticks, SMA20, daily Volume and CCI(14). Stage 1 overlays black boxes for the final bar when it is Hammer / Regular Doji / Dragonfly Doji with volume above the previous 20-session average, and seven bullish 2- or 3-candle patterns completed in the last five daily candles without any volume, prior-trend or SMA filter. More complex patterns take precedence when they overlap. There are NO trading triggers, support/resistance zones, portfolio tables or stop warnings.

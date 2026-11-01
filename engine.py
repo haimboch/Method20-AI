@@ -152,26 +152,113 @@ def chart(d,symbol,path,a=None,zone=None):
 
 
 def render(results,portfolio=None):
-    """Plain HTML report; chart only, no trade status or zones."""
-    cards=[]
+    """Interactive, browser-only Stage 1 dashboard; no exposed API secrets."""
+    # The dashboard is static but interactive: it displays the last completed
+    # data refresh and can be opened any time without running a workflow.
+    # Images are the exact same Stage 1 charts from chart().
+    safe=[]
     for item in results:
-        symbol=html.escape(item["symbol"])
-        if "error" in item:
-            cards.append("<section><h2>"+symbol+"</h2><p>Chart unavailable</p></section>")
-        else:
-            cards.append('<section><h2>'+symbol+'</h2><img src="charts/'+symbol+
-                         '.png" alt="95 daily candlesticks SMA20 Volume CCI14"></section>')
-    page=('<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8">'
-          +'<meta name="viewport" content="width=device-width,initial-scale=1">'
-          +'<title>METHOD 20 | Daily Charts</title>'
-          +'<style>body{font-family:Arial,sans-serif;background:#f3f5f9;'
-          +'color:#172331;margin:0;padding:16px}main{max-width:1350px;margin:auto}'
-          +'section{background:white;padding:16px;margin:16px 0;border-radius:14px}'
-          +'img{width:100%;height:auto;display:block}</style></head>'
-          +'<body><main><h1>METHOD 20 | Daily Charts</h1>'
-          +''.join(cards)+'</main></body></html>')
+        symbol=str(item["symbol"])
+        if not symbol or not all(c.isalnum() or c in ".-" for c in symbol):
+            raise ValueError("Invalid symbol for dashboard")
+        safe.append({"symbol":symbol,
+                     "session_date":item.get("session_date",""),
+                     "error":item.get("error",""),
+                     "patterns":[p["pattern"] for p in item.get("annotations",[])]})
+    data=json.dumps(safe,ensure_ascii=False).replace("<","\\u003c")
+    page="""<!doctype html>
+<html lang="he" dir="rtl"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light">
+<title>METHOD 20 | Stage 1 Dashboard</title>
+<style>
+:root{font-family:Arial,system-ui,sans-serif;color:#172331;background:#f1f5f9}
+*{box-sizing:border-box}body{margin:0}header{background:#101d31;color:white;padding:22px 4vw}
+header h1{margin:0;font-size:1.65rem}header p{margin:7px 0 0;color:#cbd5e1}
+main{max-width:1510px;margin:auto;padding:16px}
+.controls{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:14px}
+input,select,button{font:inherit;border-radius:9px;padding:11px;border:1px solid #cbd5e1;background:white}
+input{flex:1;min-width:160px}button{cursor:pointer}
+button:disabled{opacity:.35;cursor:not-allowed}
+.panel{background:white;border-radius:14px;padding:15px;box-shadow:0 2px 12px #15243a10}
+.meta{display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+.meta h2{margin:0;font-size:1.5rem;direction:ltr}
+small{color:#64748b}.pill{background:#e8eef8;border-radius:30px;padding:6px 11px;font-size:12px}
+img{width:100%;height:auto;display:block}
+.hint{font-size:13px;color:#64748b;margin-top:14px}
+#error{color:#b42318;display:none}
+@media(max-width:650px){header{padding:17px}main{padding:8px}.panel{padding:8px}}
+</style></head><body><header>
+<h1>METHOD 20 | שכבה 1</h1>
+<p>דשבורד גרפים אינטראקטיבי • 95 נרות יומיים • SMA20 • Volume • CCI(14)</p>
+</header><main>
+<div class="controls">
+<label for="ticker">מניה</label>
+<select id="ticker" aria-label="בחר מניה"></select>
+<input id="search" type="search" placeholder="חיפוש מניה..." aria-label="חיפוש מניה">
+<label for="filter">סינון</label>
+<select id="filter"><option value="all">כל המניות</option>
+<option value="patterns">עם סימון תבנית</option>
+<option value="none">ללא סימון תבנית</option></select>
+<button id="previous" type="button">הקודמת</button>
+<button id="next" type="button">הבאה</button>
+</div><section class="panel">
+<div class="meta"><h2 id="name"></h2><span class="pill" id="date"></span>
+<span class="pill" id="pattern"></span><small id="count"></small></div>
+<div id="error"></div><img id="chart" alt="גרף מניה בשכבה 1" loading="eager">
+<p class="hint">הנתונים נכונים למועד העדכון המצוין. פתיחת הדף או החלפת מניה אינה מושכת נתוני מסחר חדשים.</p>
+</section></main>
+<script id="report-data" type="application/json">__DATA__</script>
+<script>
+(() => {
+  'use strict';
+  const all=JSON.parse(document.getElementById('report-data').textContent);
+  const byId=id=>document.getElementById(id);
+  let visible=[],current='';
+  const fromUrl=new URLSearchParams(location.search).get('ticker');
+  function refreshOptions(){
+    const query=byId('search').value.trim().toUpperCase();
+    const filter=byId('filter').value;
+    visible=all.filter(x=>x.symbol.includes(query)&&
+      (filter==='all'||(filter==='patterns'?x.patterns.length>0:x.patterns.length===0)));
+    const picker=byId('ticker');
+    picker.replaceChildren();
+    visible.forEach(x=>{const option=document.createElement('option');
+      option.value=x.symbol;option.textContent=x.symbol;picker.appendChild(option)});
+    current=visible.some(x=>x.symbol===current)?current:(visible[0]?.symbol||'');
+    show(current);
+  }
+  function show(symbol){
+    current=symbol;
+    const item=visible.find(x=>x.symbol===symbol);
+    byId('ticker').value=symbol;
+    const i=visible.findIndex(x=>x.symbol===symbol);
+    byId('previous').disabled=i<=0;
+    byId('next').disabled=i<0||i===visible.length-1;
+    byId('count').textContent=visible.length?(i+1)+' / '+visible.length:'0 מניות';
+    byId('name').textContent=item?.symbol||'אין מניות התואמות לסינון';
+    byId('date').textContent=item?.session_date?'נתוני מסחר: '+item.session_date:'אין תאריך נתונים';
+    byId('pattern').textContent=item?.patterns?.length?'תבניות: '+item.patterns.join(', '):'ללא תבנית מסומנת';
+    byId('error').style.display=item?.error?'block':'none';
+    byId('error').textContent=item?.error||'';
+    const img=byId('chart');
+    img.hidden=!item||Boolean(item.error);
+    if(item&&!item.error){img.src='charts/'+encodeURIComponent(item.symbol)+'.png';img.alt='גרף '+item.symbol+' עם SMA20, Volume, CCI ותבניות';}
+    else img.removeAttribute('src');
+    if(item){const url=new URL(location.href);url.searchParams.set('ticker',symbol);history.replaceState(null,'',url);}
+  }
+  byId('search').addEventListener('input',refreshOptions);
+  byId('filter').addEventListener('change',refreshOptions);
+  byId('ticker').addEventListener('change',e=>show(e.target.value));
+  byId('previous').addEventListener('click',()=>{const i=visible.findIndex(x=>x.symbol===current);if(i>0)show(visible[i-1].symbol);});
+  byId('next').addEventListener('click',()=>{const i=visible.findIndex(x=>x.symbol===current);if(i>=0&&i<visible.length-1)show(visible[i+1].symbol);});
+  current=all.some(x=>x.symbol===fromUrl)?fromUrl:all[0]?.symbol||'';
+  refreshOptions();
+})();
+</script></body></html>""".replace("__DATA__",data)
+    (OUT/"index.html").write_text(page,encoding="utf-8")
+    # Keep compatibility with the existing pipeline / artifact consumers.
     (OUT/"report.html").write_text(page,encoding="utf-8")
-
 
 def main():
     OUT.mkdir(exist_ok=True)

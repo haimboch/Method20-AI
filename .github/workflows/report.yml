@@ -12,6 +12,8 @@ on:
 
 permissions:
   contents: read
+  pages: write
+  id-token: write
 
 concurrency:
   group: method20-report
@@ -50,3 +52,25 @@ jobs:
           path: output/
           if-no-files-found: error
           retention-days: 30
+
+  publish_dashboard:
+    needs: report
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Download verified chart dashboard
+        uses: actions/download-artifact@v4
+        with:
+          name: method20-html-report
+          path: site
+      - name: Prepare GitHub Pages
+        uses: actions/configure-pages@v5
+      - name: Upload dashboard site
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - name: Publish dashboard
+        id: deployment
+        uses: actions/deploy-pages@v4

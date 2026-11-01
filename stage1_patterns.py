@@ -1,6 +1,6 @@
-"""METHOD20 stage 1 shapes with stage 2 SMA20 location filter.
+"""METHOD20 stage 1: purely geometric candle annotations.
 
-No prior-trend, CCI, entry, stop, trading status or zones.
+No trend, SMA20 position, CCI, entry, stop, trading status or zones.
 One-candle signals: only the final bar, with volume exceeding the mean
 volume of the preceding 20 bars. Two/three-candle bullish patterns:
 completed in the last five bars, without a volume filter.
@@ -70,48 +70,11 @@ def _complex_at(d,i):
     return matches
 
 
-def _valid_sma20_location(d,i):
-    """Filter on the COMPLETION candle only, using that day's SMA20.
-
-    A: close < SMA20.
-    B: SMA20 <= low <= 1.02 * SMA20.
-    This deliberately excludes a low below SMA20 when close is above SMA20,
-    as agreed for this layer.
-    """
-    x=d.iloc[i]
-    try:
-        sma=float(x.sma20)
-        low=float(x.low)
-        close=float(x.close)
-    except (AttributeError,TypeError,ValueError):
-        return False
-    if not all(math.isfinite(v) for v in (sma,low,close)) or sma<=0:
-        return False
-    return close<sma or sma<=low<=sma*1.02
-
-
-
-def entry_trigger(d,mark):
-    """Stage 3 display-only level: HIGH of the completion candle.
-
-    Uses visible chart coordinates and does not infer order execution,
-    a later breakout or a trading state.
-    """
-    view=d.tail(95).reset_index(drop=True)
-    end=int(mark["end"])
-    if end<0 or end>=len(view):
-        raise ValueError("Completion candle is outside visible chart")
-    high=float(view.high.iloc[end])
-    if not math.isfinite(high):
-        raise ValueError("Invalid completion candle high")
-    return high
-
-
 def annotations(d):
-    """Return at most one latest valid pattern in *visible* bar coordinates.
+    """Return nonoverlapping pattern spans in *visible* bar coordinates.
 
     The last 5 bars specify pattern completion, not necessarily its start.
-    The newest completion bar wins; a longer pattern breaks same-day ties.\n    No setup/entry verdict is implied.
+    Larger patterns win overlap ties. No setup/entry verdict is implied.
     """
     if len(d)<25:
         return []
@@ -119,30 +82,24 @@ def annotations(d):
     last=len(view)-1
     choices=[]
     for i in range(max(0,last-4),last+1):
-        if not _valid_sma20_location(view,i):
-            continue
         for name,start in _complex_at(view,i):
             choices.append({"pattern":name,"start":start,"end":i,
                             "kind":"COMPLEX"})
     v=float(view.volume.iloc[-1])
     previous20=float(view.volume.iloc[-21:-1].mean())
-    if (_valid_sma20_location(view,last) and math.isfinite(v)
-        and math.isfinite(previous20) and v>previous20):
+    if math.isfinite(v) and math.isfinite(previous20) and v>previous20:
         name=_single(view,last)
         if name:
             choices.append({"pattern":name,"start":last,"end":last,
                             "kind":"SINGLE","volume_ma20":previous20})
-    # Show ONE mark: newest completed valid pattern wins, regardless
-    # of whether it is a single candle or a multi-candle formation.
-    # If several patterns end on the same bar, prefer the longest.
-    if not choices:
-        return []
-    # Same-end, same-length ties must use pattern specificity rather than
-    # alphabetical ordering. Engulfing takes precedence over a simultaneous
-    # Tweezer Bottom, which describes only the matched lows.
-    priority=("THREE_INSIDE_UP","THREE_OUTSIDE_UP","MORNING_STAR",
-              "BULLISH_ENGULFING","BULLISH_HARAMI","PIERCING_LINE",
-              "TWEEZER_BOTTOM","HAMMER","DRAGONFLY_DOJI","REGULAR_DOJI")
-    newest=max(choices,key=lambda p:(p["end"],p["end"]-p["start"]+1,
-                                     -priority.index(p["pattern"])))
-    return [newest]
+    # Give precedence to three-bar, then two-bar, then single-bar.
+    # Use most recent end for equal length and stable names for exact ties.
+    choices.sort(key=lambda p:(-(p["end"]-p["start"]+1),-p["end"],p["pattern"]))
+    taken=set()
+    selected=[]
+    for p in choices:
+        bars=set(range(p["start"],p["end"]+1))
+        if taken.isdisjoint(bars):
+            selected.append(p)
+            taken.update(bars)
+    return sorted(selected,key=lambda p:(p["start"],p["end"]))

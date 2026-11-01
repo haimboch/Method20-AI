@@ -1,11 +1,6 @@
-name: METHOD 20 Morning Email
+name: METHOD 20 Morning Email (Manual Only)
 on:
   workflow_dispatch:
-  schedule:
-    # Repeated UTC checks support both Israeli DST seasons.
-    # Morning gate and delivery cache suppress all non-eligible/duplicate runs.
-    # GitHub Actions scheduled runs can be delayed or omitted under load.
-    - cron: "07,27,47 3-7 * * 1-6"
 
 permissions:
   contents: read

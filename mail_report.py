@@ -83,7 +83,7 @@ def find_artifact(session,repo,session_date,now):
                     continue
                 meta=json.loads(z.read("metadata.json"))
                 if (meta.get("session_date")!=session_date.isoformat()
-                    or meta.get("report_type")!="CHART_WITH_STAGE3_ENTRY_LEVEL"
+                    or meta.get("report_type")!="CHART_WITH_STAGE1_MARKS"
                     or meta.get("candles_per_chart")!=95
                     or not meta.get("complete")):
                     continue

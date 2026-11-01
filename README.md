@@ -1,17 +1,3 @@
-# METHOD 20 | STAGE 3: ENTRY LEVEL DISPLAY (2026-10-31)
-
-For the single latest valid visual pattern from layers 1 and 2, draw a dashed black ENTRY line at the **High of its completion candle only**, beginning at that candle and extending to the right chart edge. This is an informational price level; no breakout check, order execution, position state, stop or CCI confirmation is added. The chart still shows only one annotated pattern. New email artifacts require `CHART_WITH_STAGE3_ENTRY_LEVEL`.
-
----
-
-# METHOD 20 | STAGE 2 SMA20 LOCATION (2026-10-31)
-
-**Display priority (31 Oct 2026):** show at most ONE annotation per ticker. Among patterns that satisfy Stage 1 shape/volume rules and Stage 2 SMA20 location rules, select the pattern whose completion candle is the newest. When multiple patterns end on the same candle, prefer the longest (three candles, then two, then one). A filtered-out later pattern must not suppress an older valid pattern within the five-candle window.
-
-Stage 1 candlestick shapes and volume rules remain unchanged. Stage 2 draws a mark only if the completed pattern's **last candle** either (A) closes below its daily SMA20 or (B) has Low between SMA20 and 1.02×SMA20 inclusive. Prior trend, CCI, entry triggers, stops and zones are not used. Outdated report artifacts are excluded through the report_type field.
-
----
-
 # METHOD 20 | STAGE 1 VISUAL PATTERNS (2026-10-30)
 
 **Current active behavior:** Daily email charts for the watchlist only. Each chart has exactly 95 daily Japanese candlesticks, SMA20, daily Volume and CCI(14). Stage 1 overlays black boxes for the final bar when it is Hammer / Regular Doji / Dragonfly Doji with volume above the previous 20-session average, and seven bullish 2- or 3-candle patterns completed in the last five daily candles without any volume, prior-trend or SMA filter. More complex patterns take precedence when they overlap. There are NO trading triggers, support/resistance zones, portfolio tables or stop warnings.

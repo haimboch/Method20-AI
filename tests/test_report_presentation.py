@@ -38,8 +38,13 @@ class ChartOnlyTests(unittest.TestCase):
             with patch("engine.OUT",Path(root)):
                 render([{"symbol":"MU","session_date":"2026-10-29","candles":95}])
                 page=(Path(root)/"report.html").read_text()
-        self.assertIn("charts/MU.png",page)
-        self.assertIn("Daily Charts",page)
+        # The interactive dashboard builds the image URL in JavaScript
+        # when a ticker is selected; it is not a static img src in HTML.
+        self.assertIn('id="chart"',page)
+        self.assertIn("encodeURIComponent(item.symbol)",page)
+        self.assertIn('"symbol": "MU"',page)
+        self.assertIn("2026-10-29",page)
+        self.assertIn("Stage 1 Dashboard",page)
         for absent in ("TRIGGERED","CANDIDATE","READY","טריגר",
                        "תמיכה","התנגדות","פוזיציות","risk_reward"):
             self.assertNotIn(absent,page)
